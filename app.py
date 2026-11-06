@@ -8,7 +8,7 @@ import os
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
-st.title("🧬 Protein Contact Residue Server")
+st.title("  Protein Contact Residue Server")
 st.write("Determine contact residues between two protein chains using customizable distance thresholds.")
 
 # Operational chemical classifications of amino acids
@@ -196,7 +196,7 @@ if structure:
                     st.dataframe(df_pairs, use_container_width=True)
                     csv_pairs = df_pairs.to_csv(index=True).encode("utf-8")
                     st.download_button(
-                        label="📥 Download Residue Pairs CSV",
+                        label="▄ Download Residue Pairs CSV",
                         data=csv_pairs,
                         file_name=f"residue_pairs_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                         mime="text/csv"
@@ -206,7 +206,7 @@ if structure:
                     st.dataframe(df_atoms, use_container_width=True)
                     csv_atoms = df_atoms.to_csv(index=True).encode("utf-8")
                     st.download_button(
-                        label="📥 Download Atom Contacts CSV",
+                        label="▄ Download Atom Contacts CSV",
                         data=csv_atoms,
                         file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                         mime="text/csv"
@@ -217,7 +217,7 @@ if structure:
                     st.dataframe(df_interface_all, use_container_width=True)
                     csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
                     st.download_button(
-                        label="📥 Download Interface Residues CSV",
+                        label="▄ Download Interface Residues CSV",
                         data=csv_interface,
                         file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                         mime="text/csv"
@@ -229,23 +229,23 @@ if structure:
                     df_aa_stats, df_groups, aa_counts = get_amino_acid_statistics(all_unique_res)
 
                     if df_aa_stats is not None:
-                        # Section i: Amino acid frequency distribution (rendered vertically below)
+                        # Section i: Amino acid frequency distribution with side-by-side bar chart
                         st.write("**i) Amino acid frequency distribution**")
-                        st.dataframe(df_aa_stats, use_container_width=True)
-
-                        # Frequency bar chart
-                        st.write("**Amino Acid Count Chart:**")
-                        st.bar_chart(aa_counts)
+                        col_table_i, col_chart_i = st.columns(2)
+                        with col_table_i:
+                            st.dataframe(df_aa_stats, use_container_width=True)
+                        with col_chart_i:
+                            st.bar_chart(aa_counts, use_container_width=True)
 
                         st.markdown("---")
 
-                        # Section ii: Group Distributions (rendered vertically below)
+                        # Section ii: Group Distributions with side-by-side bar chart
                         st.write("**ii) Group Distributions**")
-                        st.dataframe(df_groups, use_container_width=True)
-
-                        # Group bar chart
-                        st.write("**Property Group Chart:**")
-                        st.bar_chart(df_groups.set_index("Category")["Count"])
+                        col_table_ii, col_chart_ii = st.columns(2)
+                        with col_table_ii:
+                            st.dataframe(df_groups, use_container_width=True)
+                        with col_chart_ii:
+                            st.bar_chart(df_groups.set_index("Category")["Count"], use_container_width=True)
                     else:
                         st.write("No residues to display properties for.")
             else:
