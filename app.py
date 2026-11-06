@@ -21,7 +21,7 @@ structure = None
 if input_method == "Fetch from PDB (RCSB)":
     pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 1A8O):", "1A8O").strip()
     if pdb_id:
-        try: 
+        try:
             pdbl = PDBList()
             pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=".", file_format="pdb")
             structure = parser.get_structure(pdb_id, pdb_filename)
@@ -88,10 +88,10 @@ if structure:
                         continue
 
                     # Scan all atom pairs to compute separate metrics
-                    min_dist_for_pair = float('inf')
+                    min_dist_for_pair = float("inf")
                     closest_atoms = (None, None)
                     pair_key = (res_a.get_resname(), res_a.id[1], res_b.get_resname(), res_b.id[1])
-                    
+
                     for atom_a in res_a.get_atoms():
                         for atom_b in res_b.get_atoms():
                             dist = atom_a - atom_b
@@ -108,7 +108,7 @@ if structure:
                                 if dist < min_dist_for_pair:
                                     min_dist_for_pair = dist
                                     closest_atoms = (atom_a.get_name(), atom_b.get_name())
-                                    
+
                                 # Add to unique interface residue sets
                                 interface_residues_a.add(f"{res_a.get_resname()}{res_a.id[1]}")
                                 interface_residues_b.add(f"{res_b.get_resname()}{res_b.id[1]}")
@@ -127,6 +127,11 @@ if structure:
             df_pairs = pd.DataFrame(list(unique_pairs.values()))
             df_atoms = pd.DataFrame(atom_contacts)
 
+            # Create DataFrame for Unique Interface Residues
+            df_interface_a = pd.DataFrame({"Chain": chain_a, "Residue": sorted(list(interface_residues_a))})
+            df_interface_b = pd.DataFrame({"Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
+            df_interface_all = pd.concat([df_interface_a, df_interface_b], ignore_index=True)
+
             # Display Metrics Dashboard
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -138,25 +143,36 @@ if structure:
                 st.metric("Unique Interface Residues", f"{total_unique_res} (C1: {len(interface_residues_a)}, C2: {len(interface_residues_b)})")
 
             if not df_pairs.empty:
-                tab1, tab2 = st.tabs(["Residue-Residue Pairs", "Detailed Atom-Atom Contacts"])
-                
+                tab1, tab2, tab3 = st.tabs(["Residue-Residue Pairs", "Detailed Atom-Atom Contacts", "Unique Interface Residues"])
+
                 with tab1:
                     st.dataframe(df_pairs, use_container_width=True)
-                    csv_pairs = df_pairs.to_csv(index=False).encode('utf-8')
+                    csv_pairs = df_pairs.to_csv(index=False).encode("utf-8")
                     st.download_button(
                         label="📥 Download Residue Pairs CSV",
                         data=csv_pairs,
                         file_name=f"residue_pairs_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                         mime="text/csv"
                     )
-                    
+
                 with tab2:
                     st.dataframe(df_atoms, use_container_width=True)
-                    csv_atoms = df_atoms.to_csv(index=False).encode('utf-8')
+                    csv_atoms = df_atoms.to_csv(index=False).encode("utf-8")
                     st.download_button(
                         label="📥 Download Atom Contacts CSV",
                         data=csv_atoms,
                         file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                        mime="text/csv"
+                    )
+
+                with tab3:
+                    st.write("**Unique interface residues per chain (no duplicates):**")
+                    st.dataframe(df_interface_all, use_container_width=True)
+                    csv_interface = df_interface_all.to_csv(index=False).encode("utf-8")
+                    st.download_button(
+                        label="📥 Download Interface Residues CSV",
+                        data=csv_interface,
+                        file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                         mime="text/csv"
                     )
             else:
