@@ -184,7 +184,7 @@ if structure:
 
                 with tab3:
                     col_res, col_prop = st.columns([1, 1])
-                    
+
                     with col_res:
                         st.write("**Unique interface residues per chain (no duplicates):**")
                         st.dataframe(df_interface_all, use_container_width=True)
@@ -197,26 +197,30 @@ if structure:
                         )
 
                     with col_prop:
-                        st.write("**Operational Property Classification Summary**")
+                        st.write("**Amino acid frequency distribution**")
                         all_unique_res = list(interface_residues_a.union(interface_residues_b))
                         res_names_only = [res[:3].upper() for res in all_unique_res if len(res) >= 3]
                         tot_unique = len(res_names_only)
-                        
+
                         if tot_unique > 0:
                             # Individual amino acid stats
-                            aa_counts = pd.Series(res_names_only).value_counts()
+                            aa_counts = pd.Series(res_names_only).value_counts().sort_index()
                             df_aa_stats = pd.DataFrame({
                                 "Frequency": aa_counts,
                                 "Percentage (%)": (aa_counts / tot_unique * 100).round(2)
                             })
                             st.dataframe(df_aa_stats, use_container_width=True)
                             
+                            # Frequency bar chart
+                            st.write("**Amino Acid Count Chart:**")
+                            st.bar_chart(aa_counts)
+
                             # Chemical groups mapping
                             group_counts = {}
                             for group_name, aa_list in amino_acid_groups.items():
                                 count = sum(1 for r in res_names_only if r in aa_list)
                                 group_counts[group_name] = count
-                            
+
                             df_groups = pd.DataFrame({
                                 "Category": list(group_counts.keys()),
                                 "Count": list(group_counts.values()),
@@ -225,8 +229,9 @@ if structure:
                             df_groups.index = df_groups.index + 1
                             st.write("**Group Distributions:**")
                             st.dataframe(df_groups, use_container_width=True)
-                            
-                            # Simple bar chart
+
+                            # Group bar chart
+                            st.write("**Property Group Chart:**")
                             st.bar_chart(df_groups.set_index("Category")["Count"])
                         else:
                             st.write("No residues to display properties for.")
