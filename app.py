@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -228,6 +227,7 @@ if structure:
                         }
                         if visual_atom_pair is not None:
                             contact_links_visualization.append({
+                                "pair_label": f"{res_a.get_resname()}{res_a.id[1]} - {res_b.get_resname()}{res_b.id[1]}",
                                 "coord_a": visual_atom_pair[0],
                                 "coord_b": visual_atom_pair[1],
                                 "label_a": f"{res_a.get_resname()}{res_a.id[1]}",
@@ -257,6 +257,24 @@ if structure:
             st.subheader(f"🔼 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
             st.write("Interactive 3D representation showing contacting residues linked together.")
 
+            # Allow selecting which contact residue pairs to display in 3D
+            if contact_links_visualization:
+                available_pairs = [link["pair_label"] for link in contact_links_visualization]
+                st.sidebar.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
+                selected_visual_pairs = st.sidebar.multiselect(
+                    "Select residue pairs to display in 3D (leave empty to show all):",
+                    options=available_pairs,
+                    default=[]
+                )
+                
+                # Filter links based on selection
+                if selected_visual_pairs:
+                    filtered_links = [link for link in contact_links_visualization if link["pair_label"] in selected_visual_pairs]
+                else:
+                    filtered_links = contact_links_visualization
+            else:
+                filtered_links = []
+
             if pdb_raw_data:
                 try:
                     # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
@@ -266,7 +284,7 @@ if structure:
                     labels_js = ""
                     sidechains_js = ""
 
-                    for link in contact_links_visualization:
+                    for link in filtered_links:
                         ca = link["coord_a"]
                         cb = link["coord_b"]
                         # Append cylinders (dashed)
