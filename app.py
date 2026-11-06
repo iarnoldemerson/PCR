@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -281,7 +282,7 @@ if structure:
                 if pdb_raw_data:
                     try:
                         # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
-                        escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("\'", "\\\'")
+                        escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("'", "\\\'")
 
                         cylinder_lines_js = ""
                         labels_js = ""
@@ -354,29 +355,9 @@ if structure:
                 st.metric("Unique Interface Residues", f"{total_unique_res} (C1: {len(interface_residues_a)}, C2: {len(interface_residues_b)})")
 
             if not df_pairs.empty:
-                tab1, tab2, tab3 = st.tabs(["🔗 Residue-Residue Pairs", "🔍 Detailed Atom-Atom Contacts", "🧬 Unique Interface Residues & Property Analysis"])
+                tab1, tab2, tab3 = st.tabs(["🧬 Unique Interface Residues & Property Analysis", "🔗 Residue-Residue Pairs", "🔍 Detailed Atom-Atom Contacts"])
 
                 with tab1:
-                    st.dataframe(df_pairs, use_container_width=True)
-                    csv_pairs = df_pairs.to_csv(index=True).encode("utf-8")
-                    st.download_button(
-                        label="▄ Download Residue Pairs CSV",
-                        data=csv_pairs,
-                        file_name=f"residue_pairs_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                        mime="text/csv"
-                    )
-
-                with tab2:
-                    st.dataframe(df_atoms, use_container_width=True)
-                    csv_atoms = df_atoms.to_csv(index=True).encode("utf-8")
-                    st.download_button(
-                        label="▄ Download Atom Contacts CSV",
-                        data=csv_atoms,
-                        file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                        mime="text/csv"
-                    )
-
-                with tab3:
                     st.write("**Unique interface residues per chain (no duplicates):**")
                     st.dataframe(df_interface_all, use_container_width=True)
                     csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
@@ -412,6 +393,26 @@ if structure:
                             st.bar_chart(df_groups.set_index("Category")["Count"], use_container_width=True)
                     else:
                         st.write("No residues to display properties for.")
+
+                with tab2:
+                    st.dataframe(df_pairs, use_container_width=True)
+                    csv_pairs = df_pairs.to_csv(index=True).encode("utf-8")
+                    st.download_button(
+                        label="▄ Download Residue Pairs CSV",
+                        data=csv_pairs,
+                        file_name=f"residue_pairs_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                        mime="text/csv"
+                    )
+
+                with tab3:
+                    st.dataframe(df_atoms, use_container_width=True)
+                    csv_atoms = df_atoms.to_csv(index=True).encode("utf-8")
+                    st.download_button(
+                        label="▄ Download Atom Contacts CSV",
+                        data=csv_atoms,
+                        file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                        mime="text/csv"
+                    )
             else:
                 st.info(f"No contacts found between Chain {chain_a} and Chain {chain_b} within {selected_cutoff} Å.")
 else:
