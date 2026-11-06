@@ -9,7 +9,7 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
-# Inject Custom CSS to highlight Titles, Tabs and Sidebar Headers
+# Inject Custom CSS to highlight Titles, Tabs, Sidebar Headers, and Center Table Data
 st.markdown("""
     <style>
     /* Highlight main title */
@@ -67,8 +67,16 @@ st.markdown("""
         border-left: 5px solid #3B82F6;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+
+    /* CSS to center-align Dataframe cell values */
+    div[data-testid="stDataFrame"] td {
+        text-align: center !important;
+    }
+    div[data-testid="stDataFrame"] th {
+        text-align: center !important;
+    }
     </style>
-""", unsafe_allow_html=True)
+""", unsafe_allow_html=True) 
 
 # Display Highlighted Title
 st.markdown('<div class="main-title">⚕️ Protein Contact Residue Server</div>', unsafe_allow_html=True)
@@ -113,13 +121,14 @@ def get_amino_acid_statistics(all_unique_res):
 
     return df_aa_stats, df_groups, aa_counts
 
-# Sidebar with styled headers
-st.sidebar.markdown('<div class="sidebar-header-highlight">1. Load PDB Structure</div>', unsafe_allow_html=True)
+# Sidebar with styled headers (Removed leading numbers)
+st.sidebar.markdown('<div class="sidebar-header-highlight">Load PDB Structure</div>', unsafe_allow_html=True)
 input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upload PDB File"))
 
 parser = PDBParser(QUIET=True)
 structure = None
 pdb_raw_data = None
+pdb_filename_saved = "structure.pdb"
 
 if input_method == "Fetch from PDB (RCSB)":
     pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 1A8O):", "1A8O").strip()
@@ -129,6 +138,7 @@ if input_method == "Fetch from PDB (RCSB)":
             pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=".", file_format="pdb")
             with open(pdb_filename, "r") as f:
                 pdb_raw_data = f.read()
+            pdb_filename_saved = f"{pdb_id.lower()}.pdb"
             structure = parser.get_structure(pdb_id, pdb_filename)
             st.success(f"Successfully loaded structure for PDB ID: {pdb_id.upper()}")
         except Exception as e:
@@ -140,6 +150,7 @@ else:
         try:
             raw_bytes = uploaded_file.getvalue()
             pdb_raw_data = raw_bytes.decode("utf-8")
+            pdb_filename_saved = uploaded_file.name
             stringio = io.StringIO(pdb_raw_data)
             structure = parser.get_structure("uploaded_structure", stringio)
             st.success("Successfully loaded uploaded PDB file.")
@@ -151,7 +162,8 @@ if structure:
     selected_model = models[0]
     all_chains = [chain.id for chain in selected_model.get_chains()]
 
-    st.sidebar.markdown('<div class="sidebar-header-highlight">2. Parameters</div>', unsafe_allow_html=True)
+    # Removed leading numbers
+    st.sidebar.markdown('<div class="sidebar-header-highlight">Parameters</div>', unsafe_allow_html=True)
     if len(all_chains) >= 2:
         chain_a = st.sidebar.selectbox("Select Chain 1:", all_chains, index=0)
         chain_b = st.sidebar.selectbox("Select Chain 2:", all_chains, index=min(1, len(all_chains)-1))
@@ -172,6 +184,16 @@ if structure:
         format_func=lambda x: cutoff_options[x],
         index=1
     )
+
+    # Download PDB file button in Sidebar
+    if pdb_raw_data:
+        st.sidebar.markdown('<div class="sidebar-header-highlight">Download Coordinates</div>', unsafe_allow_html=True)
+        st.sidebar.download_button(
+            label="📥 Download PDB Coordinates",
+            data=pdb_raw_data,
+            file_name=pdb_filename_saved,
+            mime="chemical/x-pdb"
+        )
 
     if chain_a and chain_b:
         if chain_a == chain_b:
@@ -258,7 +280,8 @@ if structure:
             col_visualizer, col_filters = st.columns([3, 1])
 
             with col_filters:
-                st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
+                # Removed leading numbers
+                st.markdown('<div class="sidebar-header-highlight">3D Filter Display</div>', unsafe_allow_html=True)
                 if contact_links_visualization:
                     available_pairs = [link["pair_label"] for link in contact_links_visualization]
                     selected_visual_pairs = st.multiselect(
@@ -316,6 +339,9 @@ if structure:
 
                         py3dmol_html = f"""
                         <div id="3dmol_canvas" style="width: 100%; height: 500px;"></div>
+                        <button onclick="download3DView()" style="margin-top:10px; padding: 8px 12px; background-color:#1E3A8A; color:white; border:none; border-radius:4px; cursor:pointer;">
+                          📷 Download Picture
+                        </button>
                         <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
                         <script>
                             var element = document.getElementById('3dmol_canvas');
@@ -323,10 +349,7 @@ if structure:
                             var viewer = $3Dmol.createViewer(element, config);
                             viewer.addModel('{escaped_pdb}', 'pdb');
 
-                            // Clear styling of all molecules/chains to keep non-selected chains hidden
                             viewer.setStyle({{}}, {{}});
-
-                            // Display ONLY the two selected interacting chains, leaving others hidden
                             viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '#3B82F6'}}}});
                             viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '#EF4444'}}}});
 
@@ -335,9 +358,20 @@ if structure:
                             {labels_js}
                             viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
                             viewer.render();
+
+                            function download3DView() {{
+                                var canvas = element.getElementsByTagName('canvas')[0];
+                                if (canvas) {{
+                                    var image = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+                                    var link = document.createElement('a');
+                                    link.download = '3dmol_structure.png';
+                                    link.href = image;
+                                    link.click();
+                                }}
+                            }}
                         </script>
                         """
-                        components.html(py3dmol_html, height=510)
+                        components.html(py3dmol_html, height=560)
                     except Exception as e:
                         st.error(f"Could not render 3D structural model: {e}")
 
