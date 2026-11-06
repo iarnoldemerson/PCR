@@ -76,7 +76,7 @@ st.markdown("""
         text-align: center !important;
     }
     </style>
-""", unsafe_allow_html=True) 
+""", unsafe_allow_html=True)
 
 # Display Highlighted Title
 st.markdown('<div class="main-title">⚕️ Protein Contact Residue Server</div>', unsafe_allow_html=True)
@@ -121,7 +121,7 @@ def get_amino_acid_statistics(all_unique_res):
 
     return df_aa_stats, df_groups, aa_counts
 
-# Sidebar with styled headers (Removed leading numbers)
+# Sidebar with styled headers
 st.sidebar.markdown('<div class="sidebar-header-highlight">Load PDB Structure</div>', unsafe_allow_html=True)
 input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upload PDB File"))
 
@@ -162,7 +162,7 @@ if structure:
     selected_model = models[0]
     all_chains = [chain.id for chain in selected_model.get_chains()]
 
-    # Removed leading numbers
+    # Parameters Section
     st.sidebar.markdown('<div class="sidebar-header-highlight">Parameters</div>', unsafe_allow_html=True)
     if len(all_chains) >= 2:
         chain_a = st.sidebar.selectbox("Select Chain 1:", all_chains, index=0)
@@ -276,11 +276,10 @@ if structure:
             if not df_interface_all.empty:
                 df_interface_all.index = df_interface_all.index + 1
 
-            # Create side-by-side Layout: Left side for 3D molecular view, Right side for filter controls
+            # Create side-by-side Layout
             col_visualizer, col_filters = st.columns([3, 1])
 
             with col_filters:
-                # Removed leading numbers
                 st.markdown('<div class="sidebar-header-highlight">3D Filter Display</div>', unsafe_allow_html=True)
                 if contact_links_visualization:
                     available_pairs = [link["pair_label"] for link in contact_links_visualization]
@@ -289,7 +288,6 @@ if structure:
                         options=available_pairs,
                         default=[]
                     )
-                    # Filter links based on selection
                     if selected_visual_pairs:
                         filtered_links = [link for link in contact_links_visualization if link["pair_label"] in selected_visual_pairs]
                     else:
@@ -300,11 +298,10 @@ if structure:
 
             with col_visualizer:
                 st.subheader(f"🔼 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
-                st.write("Interactive 3D representation showing contacting residues linked together.")
+                st.write("Interactive 3D representation stylized like your reference image (translucent interface surfaces, custom colored ribbon cartoon and highlighted contact sticks).")
 
                 if pdb_raw_data:
                     try:
-                        # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
                         escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("'", "\\\'")
 
                         cylinder_lines_js = ""
@@ -314,44 +311,55 @@ if structure:
                         for link in filtered_links:
                             ca = link["coord_a"]
                             cb = link["coord_b"]
-                            # Append cylinders (dashed)
+                            # Dashed cylinder linking contacts
                             cylinder_lines_js += f"""
                             viewer.addCylinder({{
                                 start: {{x: {ca[0]}, y: {ca[1]}, z: {ca[2]}}},
                                 end: {{x: {cb[0]}, y: {cb[1]}, z: {cb[2]}}},
-                                radius: 0.15,
+                                radius: 0.12,
                                 fromCap: 1,
                                 toCap: 1,
-                                color: 'yellow',
+                                color: 'black',
                                 dashed: true
                             }});
                             """
-                            # Labels
-                            labels_js += f"""
-                            viewer.addLabel('{link["label_a"]}', {{fontColor:'white', backgroundColor:'#3B82F6', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
-                            viewer.addLabel('{link["label_b"]}', {{fontColor:'white', backgroundColor:'#EF4444', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
+                            # Sphere on contacting endpoints
+                            cylinder_lines_js += f"""
+                            viewer.addSphere({{center: {{x: {ca[0]}, y: {ca[1]}, z: {ca[2]}}}, radius: 0.25, color: 'red'}});
+                            viewer.addSphere({{center: {{x: {cb[0]}, y: {cb[1]}, z: {cb[2]}}}, radius: 0.25, color: 'red'}});
                             """
-                            # Sidechains (Stick styling)
+                            # Labels for residues
+                            labels_js += f"""
+                            viewer.addLabel('{link["label_a"]}', {{fontColor:'black', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#3B82F6'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}});
+                            viewer.addLabel('{link["label_b"]}', {{fontColor:'black', backgroundColor:'#FBE9E7', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#EF4444'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}});
+                            """
+                            # Sidechains colored stick (like Gold and blue sidechains in image)
                             sidechains_js += f"""
-                            viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: 'cyan'}}}});
-                            viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
+                            viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: '#3B82F6', radius:0.25}}}});
+                            viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: '#FF9800', radius:0.25}}}});
                             """
 
                         py3dmol_html = f"""
-                        <div id="3dmol_canvas" style="width: 100%; height: 500px;"></div>
+                        <div id="3dmol_canvas" style="width: 100%; height: 550px;"></div>
                         <button onclick="download3DView()" style="margin-top:10px; padding: 8px 12px; background-color:#1E3A8A; color:white; border:none; border-radius:4px; cursor:pointer;">
                           📷 Download Picture
                         </button>
                         <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
                         <script>
                             var element = document.getElementById('3dmol_canvas');
-                            var config = {{ backgroundColor: 'black' }};
+                            var config = {{ backgroundColor: 'white' }};
                             var viewer = $3Dmol.createViewer(element, config);
                             viewer.addModel('{escaped_pdb}', 'pdb');
 
                             viewer.setStyle({{}}, {{}});
-                            viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '#3B82F6'}}}});
-                            viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '#EF4444'}}}});
+                            
+                            // 1. Cartoon style to resemble Protein A (Light Blue) and Protein B (Orange/Light Brown) from picture
+                            viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '#63B3ED', opacity: 0.95}}}});
+                            viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '#F6AD55', opacity: 0.95}}}});
+
+                            // 2. Add interface molecular surfaces (VDW surface with high transparency)
+                            viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: 0.18, color: '#63B3ED'}}, {{chain: '{chain_a}'}});
+                            viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: 0.18, color: '#F6AD55'}}, {{chain: '{chain_b}'}});
 
                             {cylinder_lines_js}
                             {sidechains_js}
@@ -371,7 +379,7 @@ if structure:
                             }}
                         </script>
                         """
-                        components.html(py3dmol_html, height=560)
+                        components.html(py3dmol_html, height=610)
                     except Exception as e:
                         st.error(f"Could not render 3D structural model: {e}")
 
@@ -408,7 +416,6 @@ if structure:
                     df_aa_stats, df_groups, aa_counts = get_amino_acid_statistics(all_unique_res)
 
                     if df_aa_stats is not None:
-                        # Section i: Amino acid frequency distribution with side-by-side bar chart
                         st.write("**i) Amino acid frequency distribution**")
                         col_table_i, col_chart_i = st.columns(2)
                         with col_table_i:
@@ -418,7 +425,6 @@ if structure:
 
                         st.markdown("---")
 
-                        # Section ii: Group Distributions with side-by-side bar chart
                         st.write("**ii) Group Distributions**")
                         col_table_ii, col_chart_ii = st.columns(2)
                         with col_table_ii:
