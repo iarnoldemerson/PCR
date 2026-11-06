@@ -8,7 +8,69 @@ import os
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
-st.title("  Protein Contact Residue Server")
+# Inject Custom CSS to highlight Titles, Tabs and Sidebar Headers
+st.markdown("""
+    <style>
+    /* Highlight main title */
+    .main-title {
+        font-size: 2.8rem !important;
+        font-weight: 800 !important;
+        color: #1E3A8A !important;
+        text-align: center;
+        margin-bottom: 5px;
+        padding: 10px;
+        background: linear-gradient(90deg, #EFF6FF, #DBEAFE, #EFF6FF);
+        border-radius: 12px;
+        border-left: 8px solid #3B82F6;
+    }
+    
+    /* Highlight and style navigation Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px;
+        background-color: #F3F4F6;
+        padding: 8px 12px;
+        border-radius: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: #FFFFFF;
+        border-radius: 6px;
+        color: #4B5563 !important;
+        font-weight: 600 !important;
+        padding: 0 16px;
+        border: 1px solid #E5E7EB;
+        transition: all 0.2s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #2563EB !important;
+        border-color: #3B82F6;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #3B82F6 !important;
+        color: #FFFFFF !important;
+        border: 1px solid #2563EB !important;
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+    }
+    
+    /* Styled Custom Headers for Sidebar */
+    .sidebar-header-highlight {
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+        color: #FFFFFF !important;
+        background-color: #1E3A8A !important;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-top: 20px;
+        margin-bottom: 12px;
+        border-left: 5px solid #3B82F6;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Display Highlighted Title
+st.markdown('<div class="main-title">⚕️ Protein Contact Residue Server</div>', unsafe_allow_html=True)
 st.write("Determine contact residues between two protein chains using customizable distance thresholds.")
 
 # Operational chemical classifications of amino acids
@@ -50,8 +112,8 @@ def get_amino_acid_statistics(all_unique_res):
 
     return df_aa_stats, df_groups, aa_counts
 
-# Sidebar for structure input
-st.sidebar.header("1. Load PDB Structure")
+# Sidebar with styled headers
+st.sidebar.markdown('<div class="sidebar-header-highlight">1. Load PDB Structure</div>', unsafe_allow_html=True)
 input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upload PDB File"))
 
 parser = PDBParser(QUIET=True)
@@ -83,7 +145,7 @@ if structure:
     selected_model = models[0]
     all_chains = [chain.id for chain in selected_model.get_chains()]
 
-    st.sidebar.header("2. Parameters")
+    st.sidebar.markdown('<div class="sidebar-header-highlight">2. Parameters</div>', unsafe_allow_html=True)
     if len(all_chains) >= 2:
         chain_a = st.sidebar.selectbox("Select Chain 1:", all_chains, index=0)
         chain_b = st.sidebar.selectbox("Select Chain 2:", all_chains, index=min(1, len(all_chains)-1))
@@ -190,7 +252,7 @@ if structure:
                 st.metric("Unique Interface Residues", f"{total_unique_res} (C1: {len(interface_residues_a)}, C2: {len(interface_residues_b)})")
 
             if not df_pairs.empty:
-                tab1, tab2, tab3 = st.tabs(["Residue-Residue Pairs", "Detailed Atom-Atom Contacts", "Unique Interface Residues & Property Analysis"])
+                tab1, tab2, tab3 = st.tabs(["🔗 Residue-Residue Pairs", "🔍 Detailed Atom-Atom Contacts", "🧬 Unique Interface Residues & Property Analysis"])
 
                 with tab1:
                     st.dataframe(df_pairs, use_container_width=True)
