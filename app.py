@@ -11,6 +11,15 @@ st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 st.title("🧬 Protein Contact Residue Server")
 st.write("Determine contact residues between two protein chains using customizable distance thresholds.")
 
+# Operational chemical classifications of amino acids
+amino_acid_groups = {
+    'Hydrophobic': ['ALA', 'VAL', 'ILE', 'LEU', 'MET', 'PHE', 'TRP', 'PRO'],
+    'Polar': ['SER', 'THR', 'ASN', 'GLN', 'TYR', 'CYS'],
+    'Positively charged': ['LYS', 'ARG', 'HIS'],
+    'Negatively charged': ['ASP', 'GLU'],
+    'Aromatic': ['PHE', 'TYR', 'TRP']
+}
+
 # Sidebar for structure input
 st.sidebar.header("1. Load PDB Structure")
 input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upload PDB File"))
@@ -70,7 +79,7 @@ if structure:
         if chain_a == chain_b:
             st.warning("Please select two different chains for inter-chain contact analysis.")
         else:
-            st.subheader(f"Inter-chain Contacts: Chain **{chain_a}** and Chain **{chain_b}** at **{selected_cutoff} Å**")
+            st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
 
             ch_a_obj = selected_model[chain_a]
             ch_b_obj = selected_model[chain_b]
@@ -151,7 +160,7 @@ if structure:
                 st.metric("Unique Interface Residues", f"{total_unique_res} (C1: {len(interface_residues_a)}, C2: {len(interface_residues_b)})")
 
             if not df_pairs.empty:
-                tab1, tab2, tab3 = st.tabs(["Residue-Residue Pairs", "Detailed Atom-Atom Contacts", "Unique Interface Residues"])
+                tab1, tab2, tab3 = st.tabs(["Residue-Residue Pairs", "Detailed Atom-Atom Contacts", "Unique Interface Residues & Property Analysis"])
 
                 with tab1:
                     st.dataframe(df_pairs, use_container_width=True)
@@ -174,15 +183,53 @@ if structure:
                     )
 
                 with tab3:
-                    st.write("**Unique interface residues per chain (no duplicates):**")
-                    st.dataframe(df_interface_all, use_container_width=True)
-                    csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
-                    st.download_button(
-                        label="📥 Download Interface Residues CSV",
-                        data=csv_interface,
-                        file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                        mime="text/csv"
-                    )
+                    col_res, col_prop = st.columns([1, 1])
+                    
+                    with col_res:
+                        st.write("**Unique interface residues per chain (no duplicates):**")
+                        st.dataframe(df_interface_all, use_container_width=True)
+                        csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
+                        st.download_button(
+                            label="📥 Download Interface Residues CSV",
+                            data=csv_interface,
+                            file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                            mime="text/csv"
+                        )
+
+                    with col_prop:
+                        st.write("**Operational Property Classification Summary**")
+                        all_unique_res = list(interface_residues_a.union(interface_residues_b))
+                        res_names_only = [res[:3].upper() for res in all_unique_res if len(res) >= 3]
+                        tot_unique = len(res_names_only)
+                        
+                        if tot_unique > 0:
+                            # Individual amino acid stats
+                            aa_counts = pd.Series(res_names_only).value_counts()
+                            df_aa_stats = pd.DataFrame({
+                                "Frequency": aa_counts,
+                                "Percentage (%)": (aa_counts / tot_unique * 100).round(2)
+                            })
+                            st.dataframe(df_aa_stats, use_container_width=True)
+                            
+                            # Chemical groups mapping
+                            group_counts = {}
+                            for group_name, aa_list in amino_acid_groups.items():
+                                count = sum(1 for r in res_names_only if r in aa_list)
+                                group_counts[group_name] = count
+                            
+                            df_groups = pd.DataFrame({
+                                "Category": list(group_counts.keys()),
+                                "Count": list(group_counts.values()),
+                                "Percentage (%)": [round((c / tot_unique) * 100, 2) for c in group_counts.values()]
+                            })
+                            df_groups.index = df_groups.index + 1
+                            st.write("**Group Distributions:**")
+                            st.dataframe(df_groups, use_container_width=True)
+                            
+                            # Simple bar chart
+                            st.bar_chart(df_groups.set_index("Category")["Count"])
+                        else:
+                            st.write("No residues to display properties for.")
             else:
                 st.info(f"No contacts found between Chain {chain_a} and Chain {chain_b} within {selected_cutoff} Å.")
 else:
