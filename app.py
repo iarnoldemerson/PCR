@@ -5,6 +5,8 @@ import numpy as np
 from Bio.PDB import PDBParser, PDBList
 import io
 import os
+from stmol import showmol
+import ipy3dmol
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
@@ -118,6 +120,7 @@ input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upl
 
 parser = PDBParser(QUIET=True)
 structure = None
+pdb_raw_data = None
 
 if input_method == "Fetch from PDB (RCSB)":
     pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 1A8O):", "1A8O").strip()
@@ -125,6 +128,8 @@ if input_method == "Fetch from PDB (RCSB)":
         try:
             pdbl = PDBList()
             pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=".", file_format="pdb")
+            with open(pdb_filename, "r") as f:
+                pdb_raw_data = f.read()
             structure = parser.get_structure(pdb_id, pdb_filename)
             st.success(f"Successfully loaded structure for PDB ID: {pdb_id.upper()}")
         except Exception as e:
@@ -134,7 +139,9 @@ else:
     uploaded_file = st.sidebar.file_uploader("Upload a .pdb file:", type=["pdb"])
     if uploaded_file is not None:
         try:
-            stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
+            raw_bytes = uploaded_file.getvalue()
+            pdb_raw_data = raw_bytes.decode("utf-8")
+            stringio = io.StringIO(pdb_raw_data)
             structure = parser.get_structure("uploaded_structure", stringio)
             st.success("Successfully loaded uploaded PDB file.")
         except Exception as e:
@@ -171,8 +178,6 @@ if structure:
         if chain_a == chain_b:
             st.warning("Please select two different chains for inter-chain contact analysis.")
         else:
-            st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
-
             ch_a_obj = selected_model[chain_a]
             ch_b_obj = selected_model[chain_b]
 
@@ -180,6 +185,7 @@ if structure:
             unique_pairs = {}
             interface_residues_a = set()
             interface_residues_b = set()
+            contact_links_visualization = []
 
             for res_a in ch_a_obj.get_residues():
                 if res_a.id[0] != " ":
@@ -188,16 +194,15 @@ if structure:
                     if res_b.id[0] != " ":
                         continue
 
-                    # Scan all atom pairs to compute separate metrics
                     min_dist_for_pair = float("inf")
                     closest_atoms = (None, None)
                     pair_key = (res_a.get_resname(), res_a.id[1], res_b.get_resname(), res_b.id[1])
+                    visual_atom_pair = None
 
                     for atom_a in res_a.get_atoms():
                         for atom_b in res_b.get_atoms():
                             dist = atom_a - atom_b
                             if dist <= selected_cutoff:
-                                # Record every individual atom-atom contact
                                 atom_contacts.append({
                                     "Residue A": f"{res_a.get_resname()}{res_a.id[1]}",
                                     "Atom A": atom_a.get_name(),
@@ -205,12 +210,11 @@ if structure:
                                     "Atom B": atom_b.get_name(),
                                     "Distance (Å)": round(dist, 3)
                                 })
-                                # Track unique residue pair relationships
                                 if dist < min_dist_for_pair:
                                     min_dist_for_pair = dist
                                     closest_atoms = (atom_a.get_name(), atom_b.get_name())
+                                    visual_atom_pair = (atom_a.get_coord(), atom_b.get_coord())
 
-                                # Add to unique interface residue sets
                                 interface_residues_a.add(f"{res_a.get_resname()}{res_a.id[1]}")
                                 interface_residues_b.add(f"{res_b.get_resname()}{res_b.id[1]}")
 
@@ -223,6 +227,15 @@ if structure:
                             "Minimum Distance (Å)": round(min_dist_for_pair, 3),
                             "Closest Atoms (A-B)": f"{closest_atoms[0]}-{closest_atoms[1]}"
                         }
+                        if visual_atom_pair is not None:
+                            contact_links_visualization.append({
+                                "coord_a": visual_atom_pair[0],
+                                "coord_b": visual_atom_pair[1],
+                                "label_a": f"{res_a.get_resname()}{res_a.id[1]}",
+                                "label_b": f"{res_b.get_resname()}{res_b.id[1]}",
+                                "spec_a": {"chain": chain_a, "resi": res_a.id[1]},
+                                "spec_b": {"chain": chain_b, "resi": res_b.id[1]}
+                            })
 
             # Convert results to lists/DataFrames
             df_pairs = pd.DataFrame(list(unique_pairs.values()))
@@ -240,6 +253,51 @@ if structure:
                 df_atoms.index = df_atoms.index + 1
             if not df_interface_all.empty:
                 df_interface_all.index = df_interface_all.index + 1
+
+            # --- 3D Molecular Visualization Section --- 
+            st.subheader(f"🔼 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
+            st.write("Interactive 3D representation showing contacting residues linked together.")
+            
+            if pdb_raw_data:
+                try:
+                    view = ipy3dmol.view(width=900, height=500)
+                    view.addModel(pdb_raw_data, 'pdb')
+                    
+                    # Hide everything, then style the chains dynamically
+                    view.setStyle({})
+                    view.setStyle({'chain': chain_a}, {'cartoon': {'color': '#3B82F6'}})
+                    view.setStyle({'chain': chain_b}, {'cartoon': {'color': '#EF4444'}})
+                    
+                    # Highlight and label contacting residue atoms, then connect them with "-" dashed line
+                    for link in contact_links_visualization:
+                        # Connect contact residues with "-" dashed cylinders
+                        ca = link["coord_a"]
+                        cb = link["coord_b"]
+                        view.addCylinder({
+                            "start": {"x": float(ca[0]), "y": float(ca[1]), "z": float(ca[2])},
+                            "end": {"x": float(cb[0]), "y": float(cb[1]), "z": float(cb[2])},
+                            "radius": 0.15,
+                            "fromCap": 1,
+                            "toCap": 1,
+                            "color": "yellow",
+                            "dashed": True
+                        })
+                        
+                        # Label the contact residues
+                        view.addLabel(link["label_a"], {"fontColor":"white", "backgroundColor":"#3B82F6", "fontSize":10, "backgroundOpacity":0.8}, link["spec_a"])
+                        view.addLabel(link["label_b"], {"fontColor":"white", "backgroundColor":"#EF4444", "fontSize":10, "backgroundOpacity":0.8}, link["spec_b"])
+                        
+                        # Render sidechains for interface residues
+                        view.setStyle(link["spec_a"], {'stick': {'colorspec': 'cyan'}})
+                        view.setStyle(link["spec_b"], {'stick': {'colorspec': 'orange'}})
+                    
+                    view.zoomTo()
+                    showmol(view, height=500, width=900)
+                except Exception as e:
+                    st.error(f"Could not render 3D structural model: {e}")
+
+            # --- Inter-chain Contacts Results Table Header ---
+            st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
 
             # Display Metrics Dashboard
             col1, col2, col3 = st.columns(3)
