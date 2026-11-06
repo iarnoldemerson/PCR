@@ -241,8 +241,8 @@ if structure:
             df_atoms = pd.DataFrame(atom_contacts)
 
             # Create DataFrame for Unique Interface Residues
-            df_interface_a = pd.DataFrame("Chain": chain_a, "Residue": sorted(list(interface_residues_a))})
-            df_interface_b = pd.DataFrame("Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
+            df_interface_a = pd.DataFrame({"Chain": chain_a, "Residue": sorted(list(interface_residues_a))})
+            df_interface_b = pd.DataFrame({"Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
             df_interface_all = pd.concat([df_interface_a, df_interface_b], ignore_index=True)
 
             # Adjust DataFrame Indexes to be 1-based
