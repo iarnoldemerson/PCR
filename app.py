@@ -1,12 +1,10 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 from Bio.PDB import PDBParser, PDBList
 import io
 import os
-from stmol import showmol
-import ipy3dmol
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
@@ -254,45 +252,63 @@ if structure:
             if not df_interface_all.empty:
                 df_interface_all.index = df_interface_all.index + 1
 
-            # --- 3D Molecular Visualization Section --- 
+            # --- 3D Molecular Visualization Section (Bypassing stmol for direct HTML components) --- 
             st.subheader(f"🔼 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
             st.write("Interactive 3D representation showing contacting residues linked together.")
             
             if pdb_raw_data:
                 try:
-                    view = ipy3dmol.view(width=900, height=500)
-                    view.addModel(pdb_raw_data, 'pdb')
+                    # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
+                    escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("\'", "\\'")
                     
-                    # Hide everything, then style the chains dynamically
-                    view.setStyle({})
-                    view.setStyle({'chain': chain_a}, {'cartoon': {'color': '#3B82F6'}})
-                    view.setStyle({'chain': chain_b}, {'cartoon': {'color': '#EF4444'}})
+                    cylinder_lines_js = ""
+                    labels_js = ""
+                    sidechains_js = ""
                     
-                    # Highlight and label contacting residue atoms, then connect them with "-" dashed line
                     for link in contact_links_visualization:
-                        # Connect contact residues with "-" dashed cylinders
                         ca = link["coord_a"]
                         cb = link["coord_b"]
-                        view.addCylinder({
-                            "start": {"x": float(ca[0]), "y": float(ca[1]), "z": float(ca[2])},
-                            "end": {"x": float(cb[0]), "y": float(cb[1]), "z": float(cb[2])},
-                            "radius": 0.15,
-                            "fromCap": 1,
-                            "toCap": 1,
-                            "color": "yellow",
-                            "dashed": True
-                        })
-                        
-                        # Label the contact residues
-                        view.addLabel(link["label_a"], {"fontColor":"white", "backgroundColor":"#3B82F6", "fontSize":10, "backgroundOpacity":0.8}, link["spec_a"])
-                        view.addLabel(link["label_b"], {"fontColor":"white", "backgroundColor":"#EF4444", "fontSize":10, "backgroundOpacity":0.8}, link["spec_b"])
-                        
-                        # Render sidechains for interface residues
-                        view.setStyle(link["spec_a"], {'stick': {'colorspec': 'cyan'}})
-                        view.setStyle(link["spec_b"], {'stick': {'colorspec': 'orange'}})
-                    
-                    view.zoomTo()
-                    showmol(view, height=500, width=900)
+                        # Append cylinders (dashed)
+                        cylinder_lines_js += f"""
+                        viewer.addCylinder({{
+                            start: {{x: {ca[0]}, y: {ca[1]}, z: {ca[2]}}},
+                            end: {{x: {cb[0]}, y: {cb[1]}, z: {cb[2]}}},
+                            radius: 0.15,
+                            fromCap: 1,
+                            toCap: 1,
+                            color: 'yellow',
+                            dashed: true
+                        }});
+                        """
+                        # Labels
+                        labels_js += f"""
+                        viewer.addLabel('{link["label_a"]}', {{fontColor:'white', backgroundColor:'#3B82F6', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
+                        viewer.addLabel('{link["label_b"]}', {{fontColor:'white', backgroundColor:'#EF4444', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
+                        """
+                        # Sidechains (Stick styling)
+                        sidechains_js += f"""
+                        viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: 'cyan'}}}});
+                        viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
+                        """
+
+                    py3dmol_html = f"""
+                    <div id="3dmol_canvas" style="width: 100%; height: 500px;"></div>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
+                    <script>
+                        var element = document.getElementById('3dmol_canvas');
+                        var config = {{ backgroundColor: 'black' }};
+                        var viewer = $3Dmol.createViewer(element, config);
+                        viewer.addModel('{escaped_pdb}', 'pdb');
+                        viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '#3B82F6'}}}});
+                        viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '#EF4444'}}}});
+                        {cylinder_lines_js}
+                        {sidechains_js}
+                        {labels_js}
+                        viewer.zoomTo();
+                        viewer.render();
+                    </script>
+                    """
+                    components.html(py3dmol_html, height=510)
                 except Exception as e:
                     st.error(f"Could not render 3D structural model: {e}")
 
