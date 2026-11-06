@@ -23,7 +23,7 @@ st.markdown("""
         border-radius: 12px;
         border-left: 8px solid #3B82F6;
     }
-    
+
     /* Highlight and style navigation Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 12px;
@@ -52,7 +52,7 @@ st.markdown("""
         border: 1px solid #2563EB !important;
         box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
     }
-    
+
     /* Styled Custom Headers for Sidebar */
     .sidebar-header-highlight {
         font-size: 1.25rem !important;
@@ -240,8 +240,8 @@ if structure:
             df_atoms = pd.DataFrame(atom_contacts)
 
             # Create DataFrame for Unique Interface Residues
-            df_interface_a = pd.DataFrame({"Chain": chain_a, "Residue": sorted(list(interface_residues_a))})
-            df_interface_b = pd.DataFrame({"Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
+            df_interface_a = pd.DataFrame("Chain": chain_a, "Residue": sorted(list(interface_residues_a))})
+            df_interface_b = pd.DataFrame("Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
             df_interface_all = pd.concat([df_interface_a, df_interface_b], ignore_index=True)
 
             # Adjust DataFrame Indexes to be 1-based
@@ -252,19 +252,19 @@ if structure:
             if not df_interface_all.empty:
                 df_interface_all.index = df_interface_all.index + 1
 
-            # --- 3D Molecular Visualization Section (Bypassing stmol for direct HTML components) --- 
+            # --- 3D Molecular Visualization Section (Bypassing stmol for direct HTML components) ---
             st.subheader(f"🔼 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
             st.write("Interactive 3D representation showing contacting residues linked together.")
-            
+
             if pdb_raw_data:
                 try:
                     # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
-                    escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("\'", "\\'")
-                    
+                    escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("\'", "\\\'")
+
                     cylinder_lines_js = ""
                     labels_js = ""
                     sidechains_js = ""
-                    
+
                     for link in contact_links_visualization:
                         ca = link["coord_a"]
                         cb = link["coord_b"]
@@ -299,12 +299,18 @@ if structure:
                         var config = {{ backgroundColor: 'black' }};
                         var viewer = $3Dmol.createViewer(element, config);
                         viewer.addModel('{escaped_pdb}', 'pdb');
+
+                        // Clear styling of all molecules/chains to keep non-selected chains hidden
+                        viewer.setStyle({{}}, {{}});
+
+                        // Display ONLY the two selected interacting chains, leaving others hidden
                         viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '#3B82F6'}}}});
                         viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '#EF4444'}}}});
+
                         {cylinder_lines_js}
                         {sidechains_js}
                         {labels_js}
-                        viewer.zoomTo();
+                        viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
                         viewer.render();
                     </script>
                     """
