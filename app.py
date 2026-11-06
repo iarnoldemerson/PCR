@@ -53,7 +53,7 @@ st.markdown("""
         box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
     }
 
-    /* Styled Custom Headers for Sidebar */
+    /* Styled Custom Headers for Sidebar & Main Panel Widgets */
     .sidebar-header-highlight {
         font-size: 1.25rem !important;
         font-weight: 700 !important;
@@ -253,89 +253,92 @@ if structure:
             if not df_interface_all.empty:
                 df_interface_all.index = df_interface_all.index + 1
 
-            # --- 3D Molecular Visualization Section (Bypassing stmol for direct HTML components) ---
-            st.subheader(f"🔼 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
-            st.write("Interactive 3D representation showing contacting residues linked together.")
+            # Create side-by-side Layout: Left side for 3D molecular view, Right side for filter controls
+            col_visualizer, col_filters = st.columns([3, 1])
 
-            # Allow selecting which contact residue pairs to display in 3D
-            if contact_links_visualization:
-                available_pairs = [link["pair_label"] for link in contact_links_visualization]
-                st.sidebar.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
-                selected_visual_pairs = st.sidebar.multiselect(
-                    "Select residue pairs to display in 3D (leave empty to show all):",
-                    options=available_pairs,
-                    default=[]
-                )
-                
-                # Filter links based on selection
-                if selected_visual_pairs:
-                    filtered_links = [link for link in contact_links_visualization if link["pair_label"] in selected_visual_pairs]
+            with col_filters:
+                st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
+                if contact_links_visualization:
+                    available_pairs = [link["pair_label"] for link in contact_links_visualization]
+                    selected_visual_pairs = st.multiselect(
+                        "Select contact residue pairs to display (leave empty to show all):",
+                        options=available_pairs,
+                        default=[]
+                    )
+                    # Filter links based on selection
+                    if selected_visual_pairs:
+                        filtered_links = [link for link in contact_links_visualization if link["pair_label"] in selected_visual_pairs]
+                    else:
+                        filtered_links = contact_links_visualization
                 else:
-                    filtered_links = contact_links_visualization
-            else:
-                filtered_links = []
+                    st.info("No contacts available to filter.")
+                    filtered_links = []
 
-            if pdb_raw_data:
-                try:
-                    # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
-                    escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("\'", "\\\'")
+            with col_visualizer:
+                st.subheader(f"🔼 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
+                st.write("Interactive 3D representation showing contacting residues linked together.")
 
-                    cylinder_lines_js = ""
-                    labels_js = ""
-                    sidechains_js = ""
+                if pdb_raw_data:
+                    try:
+                        # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
+                        escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("\'", "\\\'")
 
-                    for link in filtered_links:
-                        ca = link["coord_a"]
-                        cb = link["coord_b"]
-                        # Append cylinders (dashed)
-                        cylinder_lines_js += f"""
-                        viewer.addCylinder({{
-                            start: {{x: {ca[0]}, y: {ca[1]}, z: {ca[2]}}},
-                            end: {{x: {cb[0]}, y: {cb[1]}, z: {cb[2]}}},
-                            radius: 0.15,
-                            fromCap: 1,
-                            toCap: 1,
-                            color: 'yellow',
-                            dashed: true
-                        }});
+                        cylinder_lines_js = ""
+                        labels_js = ""
+                        sidechains_js = ""
+
+                        for link in filtered_links:
+                            ca = link["coord_a"]
+                            cb = link["coord_b"]
+                            # Append cylinders (dashed)
+                            cylinder_lines_js += f"""
+                            viewer.addCylinder({{
+                                start: {{x: {ca[0]}, y: {ca[1]}, z: {ca[2]}}},
+                                end: {{x: {cb[0]}, y: {cb[1]}, z: {cb[2]}}},
+                                radius: 0.15,
+                                fromCap: 1,
+                                toCap: 1,
+                                color: 'yellow',
+                                dashed: true
+                            }});
+                            """
+                            # Labels
+                            labels_js += f"""
+                            viewer.addLabel('{link["label_a"]}', {{fontColor:'white', backgroundColor:'#3B82F6', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
+                            viewer.addLabel('{link["label_b"]}', {{fontColor:'white', backgroundColor:'#EF4444', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
+                            """
+                            # Sidechains (Stick styling)
+                            sidechains_js += f"""
+                            viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: 'cyan'}}}});
+                            viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
+                            """
+
+                        py3dmol_html = f"""
+                        <div id="3dmol_canvas" style="width: 100%; height: 500px;"></div>
+                        <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
+                        <script>
+                            var element = document.getElementById('3dmol_canvas');
+                            var config = {{ backgroundColor: 'black' }};
+                            var viewer = $3Dmol.createViewer(element, config);
+                            viewer.addModel('{escaped_pdb}', 'pdb');
+
+                            // Clear styling of all molecules/chains to keep non-selected chains hidden
+                            viewer.setStyle({{}}, {{}});
+
+                            // Display ONLY the two selected interacting chains, leaving others hidden
+                            viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '#3B82F6'}}}});
+                            viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '#EF4444'}}}});
+
+                            {cylinder_lines_js}
+                            {sidechains_js}
+                            {labels_js}
+                            viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
+                            viewer.render();
+                        </script>
                         """
-                        # Labels
-                        labels_js += f"""
-                        viewer.addLabel('{link["label_a"]}', {{fontColor:'white', backgroundColor:'#3B82F6', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
-                        viewer.addLabel('{link["label_b"]}', {{fontColor:'white', backgroundColor:'#EF4444', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
-                        """
-                        # Sidechains (Stick styling)
-                        sidechains_js += f"""
-                        viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: 'cyan'}}}});
-                        viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
-                        """
-
-                    py3dmol_html = f"""
-                    <div id="3dmol_canvas" style="width: 100%; height: 500px;"></div>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
-                    <script>
-                        var element = document.getElementById('3dmol_canvas');
-                        var config = {{ backgroundColor: 'black' }};
-                        var viewer = $3Dmol.createViewer(element, config);
-                        viewer.addModel('{escaped_pdb}', 'pdb');
-
-                        // Clear styling of all molecules/chains to keep non-selected chains hidden
-                        viewer.setStyle({{}}, {{}});
-
-                        // Display ONLY the two selected interacting chains, leaving others hidden
-                        viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '#3B82F6'}}}});
-                        viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '#EF4444'}}}});
-
-                        {cylinder_lines_js}
-                        {sidechains_js}
-                        {labels_js}
-                        viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
-                        viewer.render();
-                    </script>
-                    """
-                    components.html(py3dmol_html, height=510)
-                except Exception as e:
-                    st.error(f"Could not render 3D structural model: {e}")
+                        components.html(py3dmol_html, height=510)
+                    except Exception as e:
+                        st.error(f"Could not render 3D structural model: {e}")
 
             # --- Inter-chain Contacts Results Table Header ---
             st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
