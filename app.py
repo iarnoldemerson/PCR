@@ -132,6 +132,14 @@ if structure:
             df_interface_b = pd.DataFrame({"Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
             df_interface_all = pd.concat([df_interface_a, df_interface_b], ignore_index=True)
 
+            # Adjust DataFrame Indexes to be 1-based
+            if not df_pairs.empty:
+                df_pairs.index = df_pairs.index + 1
+            if not df_atoms.empty:
+                df_atoms.index = df_atoms.index + 1
+            if not df_interface_all.empty:
+                df_interface_all.index = df_interface_all.index + 1
+
             # Display Metrics Dashboard
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -147,7 +155,7 @@ if structure:
 
                 with tab1:
                     st.dataframe(df_pairs, use_container_width=True)
-                    csv_pairs = df_pairs.to_csv(index=False).encode("utf-8")
+                    csv_pairs = df_pairs.to_csv(index=True).encode("utf-8")
                     st.download_button(
                         label="📥 Download Residue Pairs CSV",
                         data=csv_pairs,
@@ -157,7 +165,7 @@ if structure:
 
                 with tab2:
                     st.dataframe(df_atoms, use_container_width=True)
-                    csv_atoms = df_atoms.to_csv(index=False).encode("utf-8")
+                    csv_atoms = df_atoms.to_csv(index=True).encode("utf-8")
                     st.download_button(
                         label="📥 Download Atom Contacts CSV",
                         data=csv_atoms,
@@ -168,7 +176,7 @@ if structure:
                 with tab3:
                     st.write("**Unique interface residues per chain (no duplicates):**")
                     st.dataframe(df_interface_all, use_container_width=True)
-                    csv_interface = df_interface_all.to_csv(index=False).encode("utf-8")
+                    csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
                     st.download_button(
                         label="📥 Download Interface Residues CSV",
                         data=csv_interface,
