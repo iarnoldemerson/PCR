@@ -328,7 +328,7 @@ if structure:
                             viewer.addSphere({{center: {{x: {ca[0]}, y: {ca[1]}, z: {ca[2]}}}, radius: 0.25, color: 'red'}});
                             viewer.addSphere({{center: {{x: {cb[0]}, y: {cb[1]}, z: {cb[2]}}}, radius: 0.25, color: 'red'}});
                             """
-                            # Labels for residues
+                            # Labels for residues with escaped double curly braces
                             labels_js += f"""
                             viewer.addLabel('{link["label_a"]}', {{fontColor:'black', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#3B82F6'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}});
                             viewer.addLabel('{link["label_b"]}', {{fontColor:'black', backgroundColor:'#FBE9E7', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#EF4444'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}});
