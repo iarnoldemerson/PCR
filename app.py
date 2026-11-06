@@ -21,9 +21,8 @@ structure = None
 if input_method == "Fetch from PDB (RCSB)":
     pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 1A8O):", "1A8O").strip()
     if pdb_id:
-        try:
+        try: 
             pdbl = PDBList()
-            # Fetch file and load
             pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=".", file_format="pdb")
             structure = parser.get_structure(pdb_id, pdb_filename)
             st.success(f"Successfully loaded structure for PDB ID: {pdb_id.upper()}")
@@ -41,12 +40,10 @@ else:
             st.error(f"Error parsing uploaded PDB file: {e}")
 
 if structure:
-    # Get models and chain list
     models = list(structure.get_models())
-    selected_model = models[0]  # Focus on the first model
-    
+    selected_model = models[0]
     all_chains = [chain.id for chain in selected_model.get_chains()]
-    
+
     st.sidebar.header("2. Parameters")
     if len(all_chains) >= 2:
         chain_a = st.sidebar.selectbox("Select Chain 1:", all_chains, index=0)
@@ -61,7 +58,7 @@ if structure:
         5.0: "5 Å (Primary contact definition)",
         6.0: "6 Å (Identify broader interfaces)"
     }
-    
+
     selected_cutoff = st.sidebar.selectbox(
         "Select Distance Cut-off:",
         options=list(cutoff_options.keys()),
@@ -73,58 +70,96 @@ if structure:
         if chain_a == chain_b:
             st.warning("Please select two different chains for inter-chain contact analysis.")
         else:
-            st.subheader(f"Inter-chain Contacts between Chain **{chain_a}** and Chain **{chain_b}** at **{selected_cutoff} Å**")
-            
+            st.subheader(f"Inter-chain Contacts: Chain **{chain_a}** and Chain **{chain_b}** at **{selected_cutoff} Å**")
+
             ch_a_obj = selected_model[chain_a]
             ch_b_obj = selected_model[chain_b]
-            
-            contacts = []
-            
-            # Compare heavy atoms of selected chains
+
+            atom_contacts = []
+            unique_pairs = {}
+            interface_residues_a = set()
+            interface_residues_b = set()
+
             for res_a in ch_a_obj.get_residues():
-                # Skip heteroatoms / water if necessary
                 if res_a.id[0] != " ":
                     continue
                 for res_b in ch_b_obj.get_residues():
                     if res_b.id[0] != " ":
                         continue
-                    
-                    # Check distance between any atom of res_a and any atom of res_b
-                    min_dist = float('inf')
+
+                    # Scan all atom pairs to compute separate metrics
+                    min_dist_for_pair = float('inf')
                     closest_atoms = (None, None)
+                    pair_key = (res_a.get_resname(), res_a.id[1], res_b.get_resname(), res_b.id[1])
+                    
                     for atom_a in res_a.get_atoms():
                         for atom_b in res_b.get_atoms():
                             dist = atom_a - atom_b
-                            if dist < min_dist:
-                                min_dist = dist
-                                closest_atoms = (atom_a.get_name(), atom_b.get_name())
-                    
-                    if min_dist <= selected_cutoff:
-                        contacts.append({
+                            if dist <= selected_cutoff:
+                                # Record every individual atom-atom contact
+                                atom_contacts.append({
+                                    "Residue A": f"{res_a.get_resname()}{res_a.id[1]}",
+                                    "Atom A": atom_a.get_name(),
+                                    "Residue B": f"{res_b.get_resname()}{res_b.id[1]}",
+                                    "Atom B": atom_b.get_name(),
+                                    "Distance (Å)": round(dist, 3)
+                                })
+                                # Track unique residue pair relationships
+                                if dist < min_dist_for_pair:
+                                    min_dist_for_pair = dist
+                                    closest_atoms = (atom_a.get_name(), atom_b.get_name())
+                                    
+                                # Add to unique interface residue sets
+                                interface_residues_a.add(f"{res_a.get_resname()}{res_a.id[1]}")
+                                interface_residues_b.add(f"{res_b.get_resname()}{res_b.id[1]}")
+
+                    if min_dist_for_pair <= selected_cutoff:
+                        unique_pairs[pair_key] = {
                             "Residue A Name": res_a.get_resname(),
                             "Residue A ID": res_a.id[1],
                             "Residue B Name": res_b.get_resname(),
                             "Residue B ID": res_b.id[1],
-                            "Minimum Distance (Å)": round(min_dist, 3),
+                            "Minimum Distance (Å)": round(min_dist_for_pair, 3),
                             "Closest Atoms (A-B)": f"{closest_atoms[0]}-{closest_atoms[1]}"
-                        })
-            
-            if contacts:
-                df_contacts = pd.DataFrame(contacts)
-                st.write(f"Found **{len(df_contacts)}** contacting residue pairs.")
+                        }
+
+            # Convert results to lists/DataFrames
+            df_pairs = pd.DataFrame(list(unique_pairs.values()))
+            df_atoms = pd.DataFrame(atom_contacts)
+
+            # Display Metrics Dashboard
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Atom–Atom Contacts", len(df_atoms))
+            with col2:
+                st.metric("Residue–Residue Pairs", len(df_pairs))
+            with col3:
+                total_unique_res = len(interface_residues_a) + len(interface_residues_b)
+                st.metric("Unique Interface Residues", f"{total_unique_res} (C1: {len(interface_residues_a)}, C2: {len(interface_residues_b)})")
+
+            if not df_pairs.empty:
+                tab1, tab2 = st.tabs(["Residue-Residue Pairs", "Detailed Atom-Atom Contacts"])
                 
-                # Show results in a dataframe
-                st.dataframe(df_contacts, use_container_width=True)
-                
-                # Download button for CSV data
-                csv = df_contacts.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 Download Contacts CSV",
-                    data=csv,
-                    file_name=f"contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                    mime="text/csv"
-                )
+                with tab1:
+                    st.dataframe(df_pairs, use_container_width=True)
+                    csv_pairs = df_pairs.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Download Residue Pairs CSV",
+                        data=csv_pairs,
+                        file_name=f"residue_pairs_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                        mime="text/csv"
+                    )
+                    
+                with tab2:
+                    st.dataframe(df_atoms, use_container_width=True)
+                    csv_atoms = df_atoms.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Download Atom Contacts CSV",
+                        data=csv_atoms,
+                        file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                        mime="text/csv"
+                    )
             else:
-                st.info(f"No contact residues found between Chain {chain_a} and Chain {chain_b} within {selected_cutoff} Å.")
+                st.info(f"No contacts found between Chain {chain_a} and Chain {chain_b} within {selected_cutoff} Å.")
 else:
     st.info("Please load a structure from the sidebar to begin analyzing contact residues.")
