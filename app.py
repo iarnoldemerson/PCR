@@ -284,7 +284,7 @@ if structure:
                 if pdb_raw_data:
                     try:
                         # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
-                        escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("\'", "\\\'")
+                        escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("'", "\\\'")
 
                         cylinder_lines_js = ""
                         labels_js = ""
@@ -318,7 +318,29 @@ if structure:
                             """
 
                         py3dmol_html = f"""
-                        <div id="3dmol_canvas" style="width: 100%; height: 500px;"></div>
+                        <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative;"></div>
+                        <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
+                            <button id="download_png_btn" style="
+                                background-color: #2563EB;
+                                color: white;
+                                border: none;
+                                padding: 8px 16px;
+                                border-radius: 6px;
+                                font-weight: 600;
+                                cursor: pointer;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                            ">📸 Save 3D View as PNG Image</button>
+                            <button id="download_jpeg_btn" style="
+                                background-color: #10B981;
+                                color: white;
+                                border: none;
+                                padding: 8px 16px;
+                                border-radius: 6px;
+                                font-weight: 600;
+                                cursor: pointer;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                            ">📸 Save 3D View as JPEG Image</button>
+                        </div>
                         <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
                         <script>
                             var element = document.getElementById('3dmol_canvas');
@@ -338,9 +360,49 @@ if structure:
                             {labels_js}
                             viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
                             viewer.render();
+
+                            // Interactive canvas to image snapshot exporter (PNG)
+                            document.getElementById('download_png_btn').addEventListener('click', function() {{
+                                try {{
+                                    var dataUrl = viewer.png();
+                                    var link = document.createElement('a');
+                                    link.href = dataUrl;
+                                    link.download = 'protein_interface_3d_view.png';
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                }} catch(err) {{
+                                    alert('Failed to generate PNG capture: ' + err.message);
+                                }}
+                            }});
+
+                            // Interactive canvas to image snapshot exporter (JPEG)
+                            document.getElementById('download_jpeg_btn').addEventListener('click', function() {{
+                                try {{
+                                    // 3Dmol viewer.png() returns base64 string directly; we can draw it to canvas for JPEG conversion
+                                    var img = new Image();
+                                    img.onload = function() {{
+                                        var canvas = document.createElement('canvas');
+                                        canvas.width = img.width;
+                                        canvas.height = img.height;
+                                        var ctx = canvas.getContext('2d');
+                                        ctx.drawImage(img, 0, 0);
+                                        var jpegUrl = canvas.toDataURL('image/jpeg', 0.9);
+                                        var link = document.createElement('a');
+                                        link.href = jpegUrl;
+                                        link.download = 'protein_interface_3d_view.jpg';
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    }};
+                                    img.src = viewer.png();
+                                }} catch(err) {{
+                                    alert('Failed to generate JPEG capture: ' + err.message);
+                                }}
+                            }});
                         </script>
                         """
-                        components.html(py3dmol_html, height=510)
+                        components.html(py3dmol_html, height=570)
                     except Exception as e:
                         st.error(f"Could not render 3D structural model: {e}")
 
