@@ -1,5 +1,4 @@
 
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -308,7 +307,7 @@ if structure:
                             # Labels rendering with transparent background
                             if enable_labels:
                                 labels_js += f"""
-                                viewer.addLabel('{link["label_a"]}', {{fontColor:'blue', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.0, borderThickness:0.0}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}});
+                                viewer.addLabel('{link["label_a"]}', {{fontColor:'blue', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.0, borderThickness:0.0}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
                                 viewer.addLabel('{link["label_b"]}', {{fontColor:'red', backgroundColor:'#FEE2E2', fontSize:10, backgroundOpacity:0.0, borderThickness:0.0}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
                                 """
                             # Sidechains (Stick styling)
