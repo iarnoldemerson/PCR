@@ -353,6 +353,16 @@ if structure:
                         py3dmol_html = f"""
                         <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative;"></div>
                         <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
+                            <button id="reset_view_btn" style="
+                                background-color: #6B7280;
+                                color: white;
+                                border: none;
+                                padding: 8px 16px;
+                                border-radius: 6px;
+                                font-weight: 600;
+                                cursor: pointer;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                            ">🔄 Reset 3D View</button>
                             <button id="download_png_btn" style="
                                 background-color: #2563EB;
                                 color: white;
@@ -393,6 +403,12 @@ if structure:
                             {labels_js}
                             viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
                             viewer.render();
+
+                            // Reset camera orientation and zoom
+                            document.getElementById('reset_view_btn').addEventListener('click', function() {{
+                                viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
+                                viewer.render();
+                            }});
 
                             // Interactive canvas to image snapshot exporter (PNG)
                             document.getElementById('download_png_btn').addEventListener('click', function() {{
