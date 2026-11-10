@@ -387,6 +387,13 @@ if structure:
                         col_table_i, col_chart_i = st.columns(2)
                         with col_table_i:
                             st.dataframe(df_aa_stats, use_container_width=True)
+                            csv_aa_stats = df_aa_stats.to_csv(index=True).encode("utf-8")
+                            st.download_button(
+                                label="▄ Download Amino Acid Frequency CSV",
+                                data=csv_aa_stats,
+                                file_name=f"amino_acid_frequency_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                                mime="text/csv"
+                            )
                         with col_chart_i:
                             st.bar_chart(aa_counts, use_container_width=True)
 
@@ -397,6 +404,13 @@ if structure:
                         col_table_ii, col_chart_ii = st.columns(2)
                         with col_table_ii:
                             st.dataframe(df_groups, use_container_width=True)
+                            csv_groups = df_groups.to_csv(index=True).encode("utf-8")
+                            st.download_button(
+                                label="▄ Download Group Distribution CSV",
+                                data=csv_groups,
+                                file_name=f"amino_acid_groups_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                                mime="text/csv"
+                            )
                         with col_chart_ii:
                             st.bar_chart(df_groups.set_index("Category")["Count"], use_container_width=True)
                     else:
