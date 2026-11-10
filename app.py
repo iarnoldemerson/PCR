@@ -89,7 +89,6 @@ def get_amino_acid_statistics(all_unique_res):
     res_names_only = [res[:3].upper() for res in all_unique_res if len(res) >= 3]
     tot_unique = len(res_names_only)
 
-
     if tot_unique == 0:
         return None, None, None
 
@@ -348,15 +347,15 @@ if structure:
             # --- Inter-chain Contacts Results Table Header ---
             st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
 
-            # Display Metrics Dashboard
+            # Display Metrics Dashboard rearranged: 1. Unique Interface Residues, 2. Residue-Residue Pairs, 3. Atom-Atom Contacts
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Atom–Atom Contacts", len(df_atoms))
+                total_unique_res = len(interface_residues_a) + len(interface_residues_b)
+                st.metric("Unique Interface Residues", f"{total_unique_res} (C1: {len(interface_residues_a)}, C2: {len(interface_residues_b)})")
             with col2:
                 st.metric("Residue–Residue Pairs", len(df_pairs))
             with col3:
-                total_unique_res = len(interface_residues_a) + len(interface_residues_b)
-                st.metric("Unique Interface Residues", f"{total_unique_res} (C1: {len(interface_residues_a)}, C2: {len(interface_residues_b)})")
+                st.metric("Atom–Atom Contacts", len(df_atoms))
 
             if not df_pairs.empty:
                 # Reordered tabs: 1. Unique Interface, 2. Residue-Residue Pairs, 3. Detailed Atom-Atom
