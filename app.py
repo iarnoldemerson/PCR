@@ -51,7 +51,7 @@ st.markdown("""
         background-color: #3B82F6 !important;
         color: #FFFFFF !important;
         border: 1px solid #2563EB !important;
-        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); 
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
     }
 
     /* Styled Custom Headers for Sidebar & Main Panel Widgets */
@@ -113,307 +113,162 @@ def get_amino_acid_statistics(all_unique_res):
 
     return df_aa_stats, df_groups, aa_counts
 
-# Sidebar with styled headers
-st.sidebar.markdown('<div class="sidebar-header-highlight">1. Load PDB Structure</div>', unsafe_allow_html=True)
-input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upload PDB File"))
+# Sidebar options
+st.sidebar.markdown('<div class="sidebar-header-highlight">🧬 Input Options</div>', unsafe_allow_html=True)
+pdb_source = st.sidebar.radio("Select PDB Source", ["Fetch from PDB", "Upload PDB File"])
 
-parser = PDBParser(QUIET=True)
-structure = None
-pdb_raw_data = None
-
-if input_method == "Fetch from PDB (RCSB)":
-    pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 1A8O):", "1A8O").strip()
-    if pdb_id:
-        try:
-            pdbl = PDBList()
-            pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=".", file_format="pdb")
-            with open(pdb_filename, "r") as f:
-                pdb_raw_data = f.read()
-            structure = parser.get_structure(pdb_id, pdb_filename)
-            st.success(f"Successfully loaded structure for PDB ID: {pdb_id.upper()}")
-        except Exception as e:
-            st.error(f"Error fetching PDB ID {pdb_id}: {e}")
-
+pdb_code = ""
+uploaded_file = None
+if pdb_source == "Fetch from PDB":
+    pdb_code = st.sidebar.text_input("Enter 4-letter PDB Code", value="1A8O").strip().upper()
 else:
-    uploaded_file = st.sidebar.file_uploader("Upload a .pdb file:", type=["pdb"])
-    if uploaded_file is not None:
-        try:
-            raw_bytes = uploaded_file.getvalue()
-            pdb_raw_data = raw_bytes.decode("utf-8")
-            stringio = io.StringIO(pdb_raw_data)
-            structure = parser.get_structure("uploaded_structure", stringio)
-            st.success("Successfully loaded uploaded PDB file.")
-        except Exception as e:
-            st.error(f"Error parsing uploaded PDB file: {e}")
+    uploaded_file = st.sidebar.file_uploader("Upload PDB File", type=["pdb", "ent"])
 
-if structure:
-    models = list(structure.get_models())
-    selected_model = models[0]
-    all_chains = [chain.id for chain in selected_model.get_chains()]
+distance_threshold = st.sidebar.slider("Distance Threshold (Å)", min_value=2.0, max_value=10.0, value=5.0, step=0.5)
 
-    st.sidebar.markdown('<div class="sidebar-header-highlight">2. Parameters</div>', unsafe_allow_html=True)
-    if len(all_chains) >= 2:
-        chain_a = st.sidebar.selectbox("Select Chain 1:", all_chains, index=0)
-        chain_b = st.sidebar.selectbox("Select Chain 2:", all_chains, index=min(1, len(all_chains)-1))
-    else:
-        st.sidebar.warning("The loaded structure has fewer than 2 chains.")
-        chain_a = all_chains[0] if all_chains else None
-        chain_b = None
+def load_pdb_structure(source, code, file_obj):
+    parser = PDBParser(QUIET=True)
+    if source == "Fetch from PDB" and code:
+        pdbl = PDBList()
+        filename = pdbl.retrieve_pdb_file(code, pdir=".", file_format="pdb")
+        if os.path.exists(filename):
+            return parser.get_structure(code, filename), filename
+    elif source == "Upload PDB File" and file_obj is not None:
+        stringio = io.StringIO(file_obj.getvalue().decode("utf-8"))
+        temp_path = "uploaded_temp.pdb"
+        with open(temp_path, "w") as f:
+            f.write(stringio.read())
+        return parser.get_structure("uploaded", temp_path), temp_path
+    return None, None
 
-    cutoff_options = {
-        4.0: "4 Å (Identify close contacts)",
-        5.0: "5 Å (Primary contact definition)",
-        6.0: "6 Å (Identify broader interfaces)"
-    }
+struct, struct_path = load_pdb_structure(pdb_source, pdb_code, uploaded_file)
 
-    selected_cutoff = st.sidebar.selectbox(
-        "Select Distance Cut-off:",
-        options=list(cutoff_options.keys()),
-        format_func=lambda x: cutoff_options[x],
-        index=1
-    )
+if struct:
+    # Extract chains dynamically
+    model = struct[0]
+    chains = [chain.id for chain in model]
 
-    if chain_a and chain_b:
-        if chain_a == chain_b:
-            st.warning("Please select two different chains for inter-chain contact analysis.")
+    st.sidebar.markdown('<div class="sidebar-header-highlight">🔗 Select Chains</div>', unsafe_allow_html=True)
+    chain_a_name = st.sidebar.selectbox("Chain A", chains, index=0)
+    chain_b_name = st.sidebar.selectbox("Chain B", chains, index=min(1, len(chains)-1))
+
+    if chain_a_name == chain_b_name:
+        st.sidebar.warning("Warning: Selecting the same chain for both A and B.")
+
+    chain_a = model[chain_a_name]
+    chain_b = model[chain_b_name]
+
+    # Compute contacts
+    contacts = []
+    for res_a in chain_a:
+        if res_a.id[0] != " ": continue  # skip heteroatoms
+        for res_b in chain_b:
+            if res_b.id[0] != " ": continue
+
+            min_dist = float("inf")
+            for atom_a in res_a:
+                for atom_b in res_b:
+                    dist = np.linalg.norm(atom_a.coord - atom_b.coord)
+                    if dist < min_dist:
+                        min_dist = dist
+
+            if min_dist <= distance_threshold:
+                label_a = f"{res_a.get_resname()}{res_a.id[1]}"
+                label_b = f"{res_b.get_resname()}{res_b.id[1]}"
+                contacts.append({
+                    "Chain A Residue": label_a,
+                    "Chain B Residue": label_b,
+                    "Distance (Å)": round(min_dist, 3),
+                    "spec_a": {"chain": chain_a_name, "resi": res_a.id[1]},
+                    "spec_b": {"chain": chain_b_name, "resi": res_b.id[1]},
+                    "label_a": label_a,
+                    "label_b": label_b
+                })
+
+    df_contacts = pd.DataFrame(contacts)
+
+    tab1, tab2, tab3 = st.tabs(["📊 Contact Details & Stats", "🌐 3D Structural View", "📝 Interface Reference Guide"])
+
+    with tab1:
+        st.subheader("Contact Summary Metrics")
+        col1, col2, col3 = st.columns(3)
+
+        if not df_contacts.empty:
+            col1.metric("Contact Pairs Found", len(df_contacts))
+
+            all_unique_res = list(set(df_contacts["Chain A Residue"].tolist() + df_contacts["Chain B Residue"].tolist()))
+            col2.metric("Unique Interface Residues", len(all_unique_res))
+            col3.metric("Avg Distance", f"{df_contacts['Distance (Å)'].mean():.2f} Å")
+
+            st.markdown("### Contact Residues DataFrame")
+            st.dataframe(df_contacts[["Chain A Residue", "Chain B Residue", "Distance (Å)"]], use_container_width=True)
+
+            # Calculate statistics
+            df_aa, df_group, aa_counts = get_amino_acid_statistics(all_unique_res)
+
+            st.markdown("### Amino Acid Profile at Interface")
+            c_left, c_right = st.columns(2)
+            with c_left:
+                st.write("**Amino Acid Distributions**")
+                st.dataframe(df_aa, use_container_width=True)
+                if aa_counts is not None:
+                    st.bar_chart(aa_counts)
+            with c_right:
+                st.write("**Operational Property Classification**")
+                st.dataframe(df_group, use_container_width=True)
+                if df_group is not None:
+                    st.bar_chart(df_group.set_index('Category')['Count'])
         else:
-            ch_a_obj = selected_model[chain_a]
-            ch_b_obj = selected_model[chain_b]
+            st.info("No contacts found at current distance threshold.")
 
-            atom_contacts = []
-            unique_pairs = {}
-            interface_residues_a = set()
-            interface_residues_b = set()
-            contact_links_visualization = []
+    with tab2:
+        st.subheader("3D Viewer (py3Dmol with Selected Interactions Labels)")
+        if not df_contacts.empty:
+            # Read structure text for JS injector
+            with open(struct_path, "r") as f:
+                pdb_data_str = f.read().replace("\n", "\\n").replace("'", "\\'").replace('"', '\\"')
 
-            for res_a in ch_a_obj.get_residues():
-                if res_a.id[0] != " ":
-                    continue
-                for res_b in ch_b_obj.get_residues():
-                    if res_b.id[0] != " ":
-                        continue
+            # Format JavaScript calls for selected top contacts
+            labels_js = ""
+            for idx, link in df_contacts.head(10).iterrows():
+                labels_js += f"""Viewer.addLabel('{link["label_a"]}', {{fontColor:'black', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#3B82F6'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});\n"""
+                labels_js += f"""Viewer.addLabel('{link["label_b"]}', {{fontColor:'black', backgroundColor:'#FEE2E2', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#EF4444'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});\n"""
 
-                    min_dist_for_pair = float("inf")
-                    closest_atoms = (None, None)
-                    pair_key = (res_a.get_resname(), res_a.id[1], res_b.get_resname(), res_b.id[1])
-                    visual_atom_pair = None
+            html_code = f"""
+            <div id="container" style="height: 500px; width: 100%; position: relative;"></div>
+            <script src="https://3dmol.org/build/3Dmol-min.js"></script>
+            <script>
+                let element = document.getElementById('container');
+                let config = {{defaultcolors: $3Dmol.rasmolElementColors}};
+                let Viewer = $3Dmol.createViewer(element, config);
+                Viewer.addModel(`{pdb_data_str}`, "pdb");
+                Viewer.setStyle({{}}, {{cartoon: {{color: 'spectrum'}}}});
 
-                    for atom_a in res_a.get_atoms():
-                        for atom_b in res_b.get_atoms():
-                            dist = atom_a - atom_b
-                            if dist <= selected_cutoff:
-                                atom_contacts.append({
-                                    "Residue A": f"{res_a.get_resname()}{res_a.id[1]}",
-                                    "Atom A": atom_a.get_name(),
-                                    "Residue B": f"{res_b.get_resname()}{res_b.id[1]}",
-                                    "Atom B": atom_b.get_name(),
-                                    "Distance (Å)": round(dist, 3)
-                                })
-                                if dist < min_dist_for_pair:
-                                    min_dist_for_pair = dist
-                                    closest_atoms = (atom_a.get_name(), atom_b.get_name())
-                                    visual_atom_pair = (atom_a.get_coord(), atom_b.get_coord())
+                // Add custom interface contact visualizers
+                {labels_js}
 
-                                interface_residues_a.add(f"{res_a.get_resname()}{res_a.id[1]}")
-                                interface_residues_b.add(f"{res_b.get_resname()}{res_b.id[1]}")
+                Viewer.zoomTo();
+                Viewer.render();
+                Viewer.resize();
+            </script>
+            """
+            components.html(html_code, height=520)
+        else:
+            st.info("Visualize 3D structure by selecting chains with active contact points.")
 
-                    if min_dist_for_pair <= selected_cutoff:
-                        unique_pairs[pair_key] = {
-                            "Residue A Name": res_a.get_resname(),
-                            "Residue A ID": res_a.id[1],
-                            "Residue B Name": res_b.get_resname(),
-                            "Residue B ID": res_b.id[1],
-                            "Minimum Distance (Å)": round(min_dist_for_pair, 3),
-                            "Closest Atoms (A-B)": f"{closest_atoms[0]}-{closest_atoms[1]}"
-                        }
-                        if visual_atom_pair is not None:
-                            contact_links_visualization.append({
-                                "pair_label": f"{res_a.get_resname()}{res_a.id[1]} - {res_b.get_resname()}{res_b.id[1]}",
-                                "coord_a": visual_atom_pair[0],
-                                "coord_b": visual_atom_pair[1],
-                                "label_a": f"{res_a.get_resname()}{res_a.id[1]}",
-                                "label_b": f"{res_b.get_resname()}{res_b.id[1]}",
-                                "spec_a": {"chain": chain_a, "resi": res_a.id[1]},
-                                "spec_b": {"chain": chain_b, "resi": res_b.id[1]}
-                            })
+    with tab3:
+        st.markdown("""
+        ### Interface Metrics Reference Guidelines
+        Ensure you are accurately interpreting the difference between the following parameters:
 
-            # Convert results to lists/DataFrames
-            df_pairs = pd.DataFrame(list(unique_pairs.values()))
-            df_atoms = pd.DataFrame(atom_contacts)
+        1. **Number of Atom–Atom Contacts**:
+           * The total frequency count of individual atom pairs below the threshold distance.
 
-            # Create DataFrame for Unique Interface Residues
-            df_interface_a = pd.DataFrame({"Chain": chain_a, "Residue": sorted(list(interface_residues_a))})
-            df_interface_b = pd.DataFrame({"Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
-            df_interface_all = pd.concat([df_interface_a, df_interface_b], ignore_index=True)
+        2. **Number of Unique Residue–Residue Contact Pairs**:
+           * Number of unique pairs of interacting residues (e.g. Chain A Residue i - Chain B Residue j).
 
-            # Adjust DataFrame Indexes to be 1-based
-            if not df_pairs.empty:
-                df_pairs.index = df_pairs.index + 1
-            if not df_atoms.empty:
-                df_atoms.index = df_atoms.index + 1
-            if not df_interface_all.empty:
-                df_interface_all.index = df_interface_all.index + 1
-
-            # 3D visualization and interaction diagram sub-tabs layout
-            st.subheader("Visualizing Chain A and Chain B Contacts")
-            v_tab1, v_tab2 = st.tabs(["🌐 Interactive 3D View", "📊 2D Interaction Diagram (Stick & Dots)"])
-
-            # Sub-Tab 1: Main 3D Molecular View
-            with v_tab1:
-                if pdb_raw_data and not df_pairs.empty:
-                    pdb_escaped = pdb_raw_data.replace("\n", "\\n").replace("'", "\\'").replace('"', '\\"')
-
-                    # Generate cylinders dynamic lines styling
-                    cylinder_js = ""
-                    labels_js = ""
-                    for contact in contact_links_visualization:
-                        coord_a = list(contact["coord_a"])
-                        coord_b = list(contact["coord_b"])
-                        cylinder_js += f"Viewer.addCylinder({{start:{{x:{coord_a[0]}, y:{coord_a[1]}, z:{coord_a[2]}}}, end:{{x:{coord_b[0]}, y:{coord_b[1]}, z:{coord_b[2]}}}, radius:0.1, color:'yellow', fromCap:true, toCap:true}});\\n"
-                        labels_js += f"Viewer.addLabel('{contact["label_a"]}', {{fontColor:'white', backgroundColor:'#1E3A8A', fontSize:9, backgroundOpacity:0.8}}, {{chain: '{contact["spec_a"]["chain"]}', resi: {contact["spec_a"]["resi"]}}});\\n"
-                        labels_js += f"Viewer.addLabel('{contact["label_b"]}', {{fontColor:'white', backgroundColor:'#B91C1C', fontSize:9, backgroundOpacity:0.8}}, {{chain: '{contact["spec_b"]["chain"]}', resi: {contact["spec_b"]["resi"]}}});\\n"
-
-                    html_code = f"""
-                    <div id="container-3d" style="height: 500px; width: 100%; position: relative;"></div>
-                    <script src="https://3dmol.org/build/3Dmol-min.js"></script>
-                    <script>
-                        let element = document.getElementById('container-3d');
-                        let config = {{defaultcolors: $3Dmol.rasmolElementColors}};
-                        let Viewer = $3Dmol.createViewer(element, config);
-                        Viewer.addModel(`{pdb_escaped}`, "pdb");
-                        Viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '#3B82F6'}}}});
-                        Viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '#EF4444'}}}});
-
-                        // Select residues at interface
-                        """
-                    for res_a_id in [res.split(" ")[-1] for res in sorted(list(interface_residues_a))]:
-                        html_code += f"""Viewer.addStyle({{chain: '{chain_a}', resi: {res_a_id}}}, {{stick: {{colorscheme: 'blueCarbon'}}}});
-"""
-                    for res_b_id in [res.split(" ")[-1] for res in sorted(list(interface_residues_b))]:
-                        html_code += f"""Viewer.addStyle({{chain: '{chain_b}', resi: {res_b_id}}}, {{stick: {{colorscheme: 'redCarbon'}}}});
-"""
-
-                    html_code += f"""
-                        {cylinder_js}
-                        {labels_js}
-                        Viewer.zoomTo();
-                        Viewer.render();
-                        Viewer.resize();
-                    </script>
-                    """
-                    components.html(html_code, height=520)
-                else:
-                    st.info("No visualization available. Please ensure chains loaded actually make contact at this distance cutoff.")
-
-            # Sub-Tab 2: 2D Interaction Diagram (Stick & Dots)
-            with v_tab2:
-                if pdb_raw_data and not df_pairs.empty:
-                    pdb_escaped = pdb_raw_data.replace("\n", "\\n").replace("'", "\\'").replace('"', '\\"')
-
-                    cylinder_dots_js = ""
-                    labels_dots_js = ""
-                    for contact in contact_links_visualization:
-                        coord_a = list(contact["coord_a"])
-                        coord_b = list(contact["coord_b"])
-                        cylinder_dots_js += f"Viewer.addCylinder({{start:{{x:{coord_a[0]}, y:{coord_a[1]}, z:{coord_a[2]}}}, end:{{x:{coord_b[0]}, y:{coord_b[1]}, z:{coord_b[2]}}}, radius:0.06, color:'white', dashed:true}});\\n"
-                        labels_dots_js += f"Viewer.addLabel('{contact["label_a"]}', {{fontColor:'white', backgroundColor:'#3B82F6', fontSize:10}}, {{chain: '{contact["spec_a"]["chain"]}', resi: {contact["spec_a"]["resi"]}}});\\n"
-                        labels_dots_js += f"Viewer.addLabel('{contact["label_b"]}', {{fontColor:'white', backgroundColor:'#EF4444', fontSize:10}}, {{chain: '{contact["spec_b"]["chain"]}', resi: {contact["spec_b"]["resi"]}}});\\n"
-
-                    html_code_dots = f"""
-                    <div id="container-dots" style="height: 500px; width: 100%; position: relative; background-color: #111827; border-radius: 8px;"></div>
-                    <script src="https://3dmol.org/build/3Dmol-min.js"></script>
-                    <script>
-                        let element = document.getElementById('container-dots');
-                        let config = {{defaultcolors: $3Dmol.rasmolElementColors}};
-                        let Viewer = $3Dmol.createViewer(element, config);
-                        Viewer.addModel(`{pdb_escaped}`, "pdb");
-                        Viewer.setBackgroundColor('#111827');
-
-                        // Hide cartoons completely
-                        Viewer.setStyle({{}}, {{}});
-
-                        // Render interacting sidechains as sticks
-                        """
-                    for res_a_id in [res.split(" ")[-1] for res in sorted(list(interface_residues_a))]:
-                        html_code_dots += f"""Viewer.addStyle({{chain: '{chain_a}', resi: {res_a_id}}}, {{stick: {{colorscheme: 'cyanCarbon'}}}});
-"""
-                    for res_b_id in [res.split(" ")[-1] for res in sorted(list(interface_residues_b))]:
-                        html_code_dots += f"""Viewer.addStyle({{chain: '{chain_b}', resi: {res_b_id}}}, {{stick: {{colorscheme: 'orangeCarbon'}}}});
-"""
-
-                    html_code_dots += f"""
-                        {cylinder_dots_js}
-                        {labels_dots_js}
-                        Viewer.zoomTo();
-                        Viewer.render();
-                        Viewer.resize();
-                    </script>
-                    """
-                    components.html(html_code_dots, height=520)
-                else:
-                    st.info("No interactions to display in stick & dots layout.")
-
-            # Main Tab Layout navigation for tabular parameters
-            st.markdown("### Interface Calculations Tables")
-            tab1, tab2, tab3 = st.tabs([
-                "📊 Unique Interface Residues & Property Analysis",
-                "🔗 Residue-Residue Pairs",
-                "🔬 Detailed Atom-Atom Contacts"
-            ])
-
-            with tab1:
-                st.subheader("Unique Interface Residues Table")
-                if not df_interface_all.empty:
-                    st.dataframe(df_interface_all, use_container_width=True)
-                    csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
-                    st.download_button(
-                        label="📥 Download Interface Residues CSV",
-                        data=csv_interface,
-                        file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                        mime="text/csv"
-                    )
-
-                    st.markdown("### Operational Property Analysis & Statistics")
-                    all_unique_interface = list(set(df_interface_all["Residue"].tolist()))
-                    df_aa_stats, df_groups, aa_counts = get_amino_acid_statistics(all_unique_interface)
-
-                    if df_aa_stats is not None:
-                        col_left, col_right = st.columns(2)
-                        with col_left:
-                            st.markdown("**Amino Acid Distributions**")
-                            st.dataframe(df_aa_stats, use_container_width=True)
-                        with col_right:
-                            st.markdown("**Operational Property Classification**")
-                            st.dataframe(df_groups, use_container_width=True)
-                else:
-                    st.info("No residues found.")
-
-            with tab2:
-                st.subheader("Residue-Residue Pairs Table")
-                if not df_pairs.empty:
-                    st.dataframe(df_pairs, use_container_width=True)
-                    csv_pairs = df_pairs.to_csv(index=True).encode("utf-8")
-                    st.download_button(
-                        label="📥 Download Residue Pairs CSV",
-                        data=csv_pairs,
-                        file_name=f"residue_pairs_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                        mime="text/csv"
-                    )
-                else:
-                    st.info("No residue-residue pairs found.")
-
-            with tab3:
-                st.subheader("Detailed Atom-Atom Contacts Table")
-                if not df_atoms.empty:
-                    st.dataframe(df_atoms, use_container_width=True)
-                    csv_atoms = df_atoms.to_csv(index=True).encode("utf-8")
-                    st.download_button(
-                        label="📥 Download Atom Contacts CSV",
-                        data=csv_atoms,
-                        file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                        mime="text/csv"
-                    )
-                else:
-                    st.info(f"No contacts found between Chain {chain_a} and Chain {chain_b} within {selected_cutoff} Å.")
+        3. **Number of Unique Interface Residues**:
+           * Total unique set of residues that participate on either side of the interface.
+        """)
 else:
-    st.info("Please load a structure from the sidebar to begin analyzing contact residues.")
+    st.info("Please choose a valid PDB source on the sidebar to trigger analysis.")
