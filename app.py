@@ -262,6 +262,22 @@ if structure:
                 st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
                 enable_labels = st.checkbox("Enable Residue Labels", value=True)
 
+                if contact_links_visualization:
+                    available_pairs = [link["pair_label"] for link in contact_links_visualization]
+                    selected_visual_pairs = st.multiselect(
+                        "Select contact residue pairs to display (leave empty to show all):",
+                        options=available_pairs,
+                        default=[]
+                    )
+                    # Filter links based on selection
+                    if selected_visual_pairs:
+                        filtered_links = [link for link in contact_links_visualization if link["pair_label"] in selected_visual_pairs]
+                    else:
+                        filtered_links = contact_links_visualization
+                else:
+                    st.info("No contacts available to filter.")
+                    filtered_links = []
+
                 # Added option to customize the visualizer background color
                 bg_color_option = st.selectbox(
                     "Viewer Background Color:",
@@ -293,22 +309,6 @@ if structure:
                 )
                 chain_a_color = color_choices[chain_a_color_name]
                 chain_b_color = color_choices[chain_b_color_name]
-
-                if contact_links_visualization:
-                    available_pairs = [link["pair_label"] for link in contact_links_visualization]
-                    selected_visual_pairs = st.multiselect(
-                        "Select contact residue pairs to display (leave empty to show all):",
-                        options=available_pairs,
-                        default=[]
-                    )
-                    # Filter links based on selection
-                    if selected_visual_pairs:
-                        filtered_links = [link for link in contact_links_visualization if link["pair_label"] in selected_visual_pairs]
-                    else:
-                        filtered_links = contact_links_visualization
-                else:
-                    st.info("No contacts available to filter.")
-                    filtered_links = []
 
             with col_visualizer:
                 st.subheader(f"🔼 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
