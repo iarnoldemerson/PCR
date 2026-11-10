@@ -359,7 +359,7 @@ if pdb_filepath:
             <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
             <script>
                 var viewer;
-                function initializeViewer() {{
+                function initializeViewer() {{ 
                     var element = document.getElementById('3dmol_canvas');
                     if (!element) {{
                         setTimeout(initializeViewer, 100);
@@ -369,17 +369,8 @@ if pdb_filepath:
                     viewer = $3Dmol.createViewer(element, config);
                     viewer.addModel('{escaped_pdb}', 'pdb');
 
-                    // Apply base styles
-                    applyBaseStyles();
-                    viewer.zoomTo();
-                    viewer.render();
-                }}
-
-                function applyBaseStyles() {{
-                    if (!viewer) return;
-                    // Clear old styling and labels completely
+                    // Clear styling of all molecules/chains
                     viewer.setStyle({{}}, {{}});
-                    viewer.clearLabels();
 
                     // Set Ribbon styles for Chains
                     viewer.setStyle({{chain: '{chain_a_input}'}}, {{cartoon: {{color: '{chain_a_color}'}}}});
@@ -388,12 +379,13 @@ if pdb_filepath:
                     // Draw sidechain sticks & contact labels
                     {sidechains_js}
                     {labels_js}
+                    viewer.zoomTo();
+                    viewer.render();
                 }}
 
                 // Bind helper functions globally to window context to guarantee button triggers work
                 window.reset3DView = function() {{
                     if (viewer) {{
-                        applyBaseStyles();
                         viewer.zoomTo();
                         viewer.render();
                     }}
