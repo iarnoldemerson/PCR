@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -304,11 +305,11 @@ if structure:
                                 dashed: true
                             }});
                             """
-                            # Labels rendering with transparent background
+                            # Labels rendering restored to original bordered design
                             if enable_labels:
                                 labels_js += f"""
-                                viewer.addLabel('{link["label_a"]}', {{fontColor:'blue', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.0, borderThickness:0.0}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
-                                viewer.addLabel('{link["label_b"]}', {{fontColor:'red', backgroundColor:'#FEE2E2', fontSize:10, backgroundOpacity:0.0, borderThickness:0.0}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
+                                viewer.addLabel('{link["label_a"]}', {{fontColor:'black', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#3B82F6'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
+                                viewer.addLabel('{link["label_b"]}', {{fontColor:'black', backgroundColor:'#FEE2E2', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#EF4444'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
                                 """
                             # Sidechains (Stick styling)
                             sidechains_js += f"""
