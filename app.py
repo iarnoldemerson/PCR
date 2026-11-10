@@ -261,9 +261,18 @@ if structure:
             with col_filters:
                 st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
                 enable_labels = st.checkbox("Enable Residue Labels", value=True)
+                
+                # Added option to customize the visualizer background color
+                bg_color_option = st.selectbox(
+                    "Viewer Background Color:",
+                    options=["black", "white", "gray"],
+                    format_func=lambda x: x.capitalize(),
+                    index=0
+                )
+                
                 if contact_links_visualization:
                     available_pairs = [link["pair_label"] for link in contact_links_visualization]
-                    selected_visual_pairs = st.multiselect(
+                    selected_visual_pairs = st.multiselect( 
                         "Select contact residue pairs to display (leave empty to show all):",
                         options=available_pairs,
                         default=[]
@@ -344,7 +353,7 @@ if structure:
                         <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
                         <script>
                             var element = document.getElementById('3dmol_canvas');
-                            var config = {{ backgroundColor: 'black' }};
+                            var config = {{ backgroundColor: '{bg_color_option}' }};
                             var viewer = $3Dmol.createViewer(element, config);
                             viewer.addModel('{escaped_pdb}', 'pdb');
 
