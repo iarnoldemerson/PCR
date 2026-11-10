@@ -78,609 +78,366 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Display Highlighted Title
-st.markdown('<div class="main-title">⚕️ Protein Contact Residue Server</div>', unsafe_allow_html=True)
-st.write("Determine contact residues between two protein chains using customizable distance thresholds.")
+st.markdown('<div class="main-title">Protein Contact Residue Server</div>', unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #4B5563; font-size: 1.15rem; margin-bottom: 25px;'>Analyze, visualize, and export residue contacts at protein-protein interfaces in 3D.</p>", unsafe_allow_html=True)
 
-# Operational chemical classifications of amino acids
-amino_acid_groups = {
-    'Hydrophobic': ['ALA', 'VAL', 'ILE', 'LEU', 'MET', 'PHE', 'TRP', 'PRO'],
-    'Polar': ['SER', 'THR', 'ASN', 'GLN', 'TYR', 'CYS'],
-    'Positively charged': ['LYS', 'ARG', 'HIS'],
-    'Negatively charged': ['ASP', 'GLU'],
-    'Aromatic': ['PHE', 'TYR', 'TRP']
-}
-
-def get_amino_acid_statistics(all_unique_res):
-    """Calculates residue frequencies, group distributions, and prepares dataframes for analysis."""
-    res_names_only = [res[:3].upper() for res in all_unique_res if len(res) >= 3]
-    tot_unique = len(res_names_only)
-
-    if tot_unique == 0:
-        return None, None, None
-
-    # Individual amino acid stats
-    aa_counts = pd.Series(res_names_only).value_counts().sort_index()
-    df_aa_stats = pd.DataFrame({
-        "Frequency": aa_counts,
-        "Percentage (%)": (aa_counts / tot_unique * 100).round(2)
-    })
-
-    # Chemical groups mapping
-    group_counts = {}
-    for group_name, aa_list in amino_acid_groups.items():
-        count = sum(1 for r in res_names_only if r in aa_list)
-        group_counts[group_name] = count
-
-    df_groups = pd.DataFrame({
-        "Category": list(group_counts.keys()),
-        "Count": list(group_counts.values()),
-        "Percentage (%)": [round((c / tot_unique) * 100, 2) for c in group_counts.values()]
-    })
-    df_groups.index = df_groups.index + 1
-
-    return df_aa_stats, df_groups, aa_counts
-
-def generate_pdf_report(pdb_id, chain_a, chain_b, cutoff, unique_residues_count, pairs_count, atoms_count, df_pairs_data):
-    """Generates a custom styled PDF containing the distance parameters and interface contact tables."""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-    story = []
-    styles = getSampleStyleSheet()
-
-    # Custom styles
-    title_style = ParagraphStyle(
-        'DocTitle',
-        parent=styles['Heading1'],
-        fontSize=22,
-        leading=26,
-        textColor=colors.HexColor('#1E3A8A'),
-        spaceAfter=15
-    )
-    section_style = ParagraphStyle(
-        'DocSub',
-        parent=styles['Heading2'],
-        fontSize=14,
-        leading=18,
-        textColor=colors.HexColor('#2563EB'),
-        spaceBefore=12,
-        spaceAfter=8
-    )
-    body_style = ParagraphStyle(
-        'DocBody',
-        parent=styles['BodyText'],
-        fontSize=10,
-        leading=14
-    )
-
-    # Title & Metadata
-    story.append(Paragraph("⚕️ Protein Contact Residue Report", title_style))
-    story.append(Paragraph(f"<b>Target Structure:</b> {pdb_id if pdb_id else 'Uploaded File'}", body_style))
-    story.append(Paragraph(f"<b>Analysed Chains:</b> Chain {chain_a} & Chain {chain_b}", body_style))
-    story.append(Paragraph(f"<b>Cut-off Distance Threshold:</b> {cutoff} Å", body_style))
-    story.append(Spacer(1, 10))
-
-    # Summary metrics table
-    story.append(Paragraph("Summary Interface Metrics", section_style))
-    metric_data = [
-        ["Unique Interface Residues", "Residue-Residue Contact Pairs", "Atom-Atom Contact Counts"],
-        [str(unique_residues_count), str(pairs_count), str(atoms_count)]
-    ]
-    metric_table = Table(metric_data, colWidths=[180, 180, 150])
-    metric_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F3F4F6')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#1F2937')),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0,0), (-1,0), 6),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D1D5DB')),
-        ('FONTSIZE', (0,0), (-1,-1), 9),
-    ]))
-    story.append(metric_table)
-    story.append(Spacer(1, 15))
-
-    # Contact Pairs Table
-    story.append(Paragraph("Contact Residue Pairs Detail Table", section_style))
-    if not df_pairs_data.empty:
-        # Format top contacts to fit nicely in report
-        top_df = df_pairs_data.head(50)
-        header = ["#", "Residue A", "Residue A ID", "Residue B", "Residue B ID", "Min Distance (Å)", "Closest Atoms"]
-        table_rows = [header]
-
-        for idx, row in top_df.iterrows():
-            table_rows.append([
-                str(idx),
-                str(row["Residue A Name"]),
-                str(row["Residue A ID"]),
-                str(row["Residue B Name"]),
-                str(row["Residue B ID"]),
-                str(row["Minimum Distance (Å)"]),
-                str(row["Closest Atoms (A-B)"])
-            ])
-
-        pairs_table = Table(table_rows, colWidths=[30, 80, 80, 80, 80, 100, 80])
-        pairs_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#3B82F6')),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0,0), (-1,0), 5),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E5E7EB')),
-            ('FONTSIZE', (0,0), (-1,-1), 8),
-        ]))
-        story.append(pairs_table)
-        if len(df_pairs_data) > 50:
-            story.append(Spacer(1, 5))
-            story.append(Paragraph("<i>*Only showing first 50 contacts in PDF export. Please download CSV for full interface payload.</i>", body_style))
+# Helper to download PDB structures
+def get_pdb_file(pdb_id):
+    pdbl = PDBList()
+    # Fetch to current directory
+    file_path = pdbl.retrieve_pdb_file(pdb_id, pdir=".", file_format="pdb")
+    if os.path.exists(file_path):
+        return file_path
     else:
-        story.append(Paragraph("No contacts identified for current parameters.", body_style))
+        # Try alternative naming standard
+        alt_path = f"pdb{pdb_id.lower()}.ent"
+        if os.path.exists(alt_path):
+            return alt_path
+    return None
 
-    doc.build(story)
-    buffer.seek(0)
-    return buffer.getvalue()
+# Side bar inputs
+st.sidebar.markdown('<div class="sidebar-header-highlight">Configure Parameters</div>', unsafe_allow_html=True)
 
-# Sidebar with styled headers
-st.sidebar.markdown('<div class="sidebar-header-highlight">1. Load PDB Structure</div>', unsafe_allow_html=True)
-input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upload PDB File"))
+input_source = st.sidebar.radio("PDB Input Source:", ["Download PDB by ID", "Upload PDB File"])
+pdb_code = ""
+uploaded_file = None
 
-parser = PDBParser(QUIET=True)
-structure = None
-pdb_raw_data = None
-pdb_name_to_report = ""
-
-if input_method == "Fetch from PDB (RCSB)":
-    pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "6Q9O").strip()
-    if pdb_id:
-        pdb_name_to_report = pdb_id.upper()
-        try:
-            pdbl = PDBList()
-            pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=".", file_format="pdb")
-            with open(pdb_filename, "r") as f:
-                pdb_raw_data = f.read()
-            structure = parser.get_structure(pdb_id, pdb_filename)
-            st.success(f"Successfully loaded structure for PDB ID: {pdb_id.upper()}")
-        except Exception as e:
-            st.error(f"Error fetching PDB ID {pdb_id}: {e}")
-
+if input_source == "Download PDB by ID":
+    pdb_code = st.sidebar.text_input("Enter 4-Character PDB Code:", value="1Y26").strip().upper()
 else:
-    uploaded_file = st.sidebar.file_uploader("Upload a .pdb file:", type=["pdb"])
-    if uploaded_file is not None:
-        pdb_name_to_report = uploaded_file.name
-        try:
-            raw_bytes = uploaded_file.getvalue()
-            pdb_raw_data = raw_bytes.decode("utf-8")
-            stringio = io.StringIO(pdb_raw_data)
-            structure = parser.get_structure("uploaded_structure", stringio)
-            st.success("Successfully loaded uploaded PDB file.")
-        except Exception as e:
-            st.error(f"Error parsing uploaded PDB file: {e}")
+    uploaded_file = st.sidebar.file_uploader("Upload PDB File:", type=["pdb", "ent"])
 
-if structure:
-    models = list(structure.get_models())
-    selected_model = models[0]
-    all_chains = [chain.id for chain in selected_model.get_chains()]
+chain_a_input = st.sidebar.text_input("Chain A Name:", value="A").strip()
+chain_b_input = st.sidebar.text_input("Chain B Name:", value="B").strip()
+cutoff = st.sidebar.slider("Heavy Atom Distance Threshold (Å):", min_value=2.0, max_value=8.0, value=5.0, step=0.5)
 
-    st.sidebar.markdown('<div class="sidebar-header-highlight">2. Parameters</div>', unsafe_allow_html=True)
-    if len(all_chains) >= 2:
-        chain_a = st.sidebar.selectbox("Select Chain 1:", all_chains, index=0)
-        chain_b = st.sidebar.selectbox("Select Chain 2:", all_chains, index=min(1, len(all_chains)-1))
+st.sidebar.markdown('<div class="sidebar-header-highlight">Visual Preferences</div>', unsafe_allow_html=True)
+bg_color_option = st.sidebar.selectbox("3D Canvas Background Color:", ["black", "white", "#1e1e1e", "lightgray"])
+chain_a_color = st.sidebar.color_picker("Chain A Cartoon Color:", "#3B82F6")
+chain_b_color = st.sidebar.color_picker("Chain B Cartoon Color:", "#F59E0B")
+
+# Setup parsing and analysis
+pdb_filepath = None
+if input_source == "Download PDB by ID" and pdb_code:
+    if len(pdb_code) == 4:
+        with st.spinner(f"Downloading PDB: {pdb_code}..."):
+            pdb_filepath = get_pdb_file(pdb_code)
+            if not pdb_filepath:
+                st.error("PDB file could not be downloaded. Verify the 4-digit code.")
     else:
-        st.sidebar.warning("The loaded structure has fewer than 2 chains.")
-        chain_a = all_chains[0] if all_chains else None
-        chain_b = None
+        st.warning("Please enter a valid 4-character PDB ID.")
+elif input_source == "Upload PDB File" and uploaded_file is not None:
+    # Save uploaded file temporarily
+    pdb_filepath = "uploaded_structure.pdb"
+    with open(pdb_filepath, "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
-    cutoff_options = {
-        4.0: "4 Å (Identify close contacts)",
-        5.0: "5 Å (Primary contact definition)",
-        6.0: "6 Å (Identify broader interfaces)"
-    }
+if pdb_filepath:
+    parser = PDBParser(QUIET=True)
+    try:
+        structure = parser.get_structure("protein", pdb_filepath)
+    except Exception as e:
+        st.error(f"Failed to parse PDB structure: {e}")
+        st.stop()
 
-    selected_cutoff = st.sidebar.selectbox(
-        "Select Distance Cut-off:",
-        options=list(cutoff_options.keys()),
-        format_func=lambda x: cutoff_options[x],
-        index=1
-    )
+    model = structure[0]
 
-    if chain_a and chain_b:
-        if chain_a == chain_b:
-            st.warning("Please select two different chains for inter-chain contact analysis.")
-        else:
-            ch_a_obj = selected_model[chain_a]
-            ch_b_obj = selected_model[chain_b]
+    # Validate user chain inputs
+    available_chains = [c.id for c in model.get_chains()]
+    if chain_a_input not in available_chains or chain_b_input not in available_chains:
+        st.error(f"Invalid Chains specified. Available chains in this PDB structure are: {', '.join(available_chains)}")
+        st.stop()
 
-            atom_contacts = []
-            unique_pairs = {}
-            interface_residues_a = set()
-            interface_residues_b = set()
-            contact_links_visualization = []
+    chain_a = model[chain_a_input]
+    chain_b = model[chain_b_input]
 
-            for res_a in ch_a_obj.get_residues():
-                if res_a.id[0] != " ":
+    # Computation of Contact residues
+    contact_pairs = []
+    unique_res_a = set()
+    unique_res_b = set()
+
+    for residue_a in chain_a:
+        # Ensure it's standard residue, skip heteroatoms/water if preferred
+        if residue_a.id[0] != " ":
+            continue
+        for residue_b in chain_b:
+            if residue_b.id[0] != " ":
+                continue
+            
+            # Compare heavy atoms
+            found_contact = False
+            min_dist = 999.0
+            best_atom_a = ""
+            best_atom_b = ""
+            for atom_a in residue_a:
+                if atom_a.element == "H":
                     continue
-                for res_b in ch_b_obj.get_residues():
-                    if res_b.id[0] != " ":
+                for atom_b in residue_b:
+                    if atom_b.element == "H":
                         continue
+                    dist = atom_a - atom_b
+                    if dist < min_dist:
+                        min_dist = dist
+                        best_atom_a = atom_a.get_name()
+                        best_atom_b = atom_b.get_name()
+                    if dist <= cutoff:
+                        found_contact = True
 
-                    min_dist_for_pair = float("inf")
-                    closest_atoms = (None, None)
-                    pair_key = (res_a.get_resname(), res_a.id[1], res_b.get_resname(), res_b.id[1])
-                    visual_atom_pair = None
+            if found_contact:
+                contact_pairs.append({
+                    "Residue A": f"{residue_a.get_resname()}{residue_a.id[1]}",
+                    "Residue B": f"{residue_b.get_resname()}{residue_b.id[1]}",
+                    "Min Distance (Å)": round(min_dist, 3),
+                    "Atom A": best_atom_a,
+                    "Atom B": best_atom_b
+                })
+                unique_res_a.add(f"{residue_a.get_resname()}{residue_a.id[1]}")
+                unique_res_b.add(f"{residue_b.get_resname()}{residue_b.id[1]}")
 
-                    for atom_a in res_a.get_atoms():
-                        for atom_b in res_b.get_atoms():
-                            dist = atom_a - atom_b
-                            if dist <= selected_cutoff:
-                                atom_contacts.append({
-                                    "Residue A": f"{res_a.get_resname()}{res_a.id[1]}",
-                                    "Atom A": atom_a.get_name(),
-                                    "Residue B": f"{res_b.get_resname()}{res_b.id[1]}",
-                                    "Atom B": atom_b.get_name(),
-                                    "Distance (Å)": round(dist, 3)
-                                })
-                                if dist < min_dist_for_pair:
-                                    min_dist_for_pair = dist
-                                    closest_atoms = (atom_a.get_name(), atom_b.get_name())
-                                    visual_atom_pair = (atom_a.get_coord(), atom_b.get_coord())
+    df_contacts = pd.DataFrame(contact_pairs)
 
-                                interface_residues_a.add(f"{res_a.get_resname()}{res_a.id[1]}")
-                                interface_residues_b.add(f"{res_b.get_resname()}{res_b.id[1]}")
+    # Create Interface tab panels
+    tab_results, tab_metrics, tab_viz = st.tabs([
+        "📊 Contact Results Table", 
+        "📝 Interface Metrics Reference", 
+        "🧬 3D Interactive Canvas"
+    ])
 
-                    if min_dist_for_pair <= selected_cutoff:
-                        unique_pairs[pair_key] = {
-                            "Residue A Name": res_a.get_resname(),
-                            "Residue A ID": res_a.id[1],
-                            "Residue B Name": res_b.get_resname(),
-                            "Residue B ID": res_b.id[1],
-                            "Minimum Distance (Å)": round(min_dist_for_pair, 3),
-                            "Closest Atoms (A-B)": f"{closest_atoms[0]}-{closest_atoms[1]}"
-                        }
-                        if visual_atom_pair is not None:
-                            contact_links_visualization.append({
-                                "pair_label": f"{res_a.get_resname()}{res_a.id[1]} - {res_b.get_resname()}{res_b.id[1]}",
-                                "coord_a": visual_atom_pair[0],
-                                "coord_b": visual_atom_pair[1],
-                                "label_a": f"{res_a.get_resname()}{res_a.id[1]}",
-                                "label_b": f"{res_b.get_resname()}{res_b.id[1]}",
-                                "spec_a": { "chain": chain_a, "resi": res_a.id[1] },
-                                "spec_b": { "chain": chain_b, "resi": res_b.id[1] }
-                            })
+    with tab_results:
+        st.subheader("Discovered Interface Contact Pairs")
+        if not df_contacts.empty:
+            st.dataframe(df_contacts, use_container_width=True)
+            
+            # Create PDF generator
+            pdf_buffer = io.BytesIO()
+            doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+            styles = getSampleStyleSheet()
+            
+            # Custom styles
+            title_style = ParagraphStyle(
+                'TitleStyle',
+                parent=styles['Heading1'],
+                fontSize=22,
+                textColor=colors.HexColor('#1E3A8A'),
+                spaceAfter=15
+            )
+            meta_style = ParagraphStyle(
+                'MetaStyle',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=colors.HexColor('#4B5563'),
+                spaceAfter=10
+            )
+            section_style = ParagraphStyle(
+                'SectionStyle',
+                parent=styles['Heading2'],
+                fontSize=14,
+                textColor=colors.HexColor('#2563EB'),
+                spaceAfter=8
+            )
+            
+            story = []
+            story.append(Paragraph("Protein Contact Residue Analysis Report", title_style))
+            story.append(Paragraph(f"PDB Target: {pdb_code if input_source == 'Download PDB by ID' else 'Uploaded Structure'}", meta_style))
+            story.append(Paragraph(f"Parameters: Chain A: {chain_a_input} | Chain B: {chain_b_input} | Cutoff: {cutoff}Å", meta_style))
+            story.append(Spacer(1, 10))
+            
+            story.append(Paragraph("Summary Statistics", section_style))
+            summary_data = [
+                ["Metric Name", "Value"],
+                ["Atom-Atom Contacts Found", str(len(df_contacts))],
+                [f"Unique Interface Residues (Chain {chain_a_input})", str(len(unique_res_a))],
+                [f"Unique Interface Residues (Chain {chain_b_input})", str(len(unique_res_b))]
+            ]
+            summary_table = Table(summary_data, colWidths=[250, 150])
+            summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#3B82F6')),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                ('BOTTOMPADDING', (0,0), (-1,0), 6),
+                ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#F9FAFB'), colors.white]),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E5E7EB'))
+            ]))
+            story.append(summary_table)
+            story.append(Spacer(1, 15))
+            
+            story.append(Paragraph("Residue Contact Pair Matrix Table", section_style))
+            # Cap at first 50 entries to keep layout clean, let users check streamlit UI for full lists
+            table_df = df_contacts.head(60)
+            table_headers = ["Residue A", "Residue B", "Atom A", "Atom B", "Min Dist (Å)"]
+            table_matrix = [table_headers] + table_df.values.tolist()
+            
+            contacts_table = Table(table_matrix, colWidths=[100, 100, 100, 100, 100])
+            contacts_table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1E3A8A')),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('BOTTOMPADDING', (0,0), (-1,0), 5),
+                ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#F3F4F6'), colors.white]),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D1D5DB'))
+            ]))
+            story.append(contacts_table)
+            
+            doc.build(story)
+            pdf_buffer.seek(0)
+            
+            st.download_button(
+                label="📥 Download Complete PDF Analysis Report",
+                data=pdf_buffer,
+                file_name="protein_contact_residue_report.pdf",
+                mime="application/pdf"
+            )
+        else:
+            st.warning("No interface residues found under current spatial distance parameters.")
 
-            # Convert results to lists/DataFrames
-            df_pairs = pd.DataFrame(list(unique_pairs.values()))
-            df_atoms = pd.DataFrame(atom_contacts)
+    with tab_metrics:
+        st.subheader("Interface Metrics Structural Guideline")
+        st.markdown("""
+        ### Core Definitions
+        * **Atom–Atom Contacts**: The total count of all individual heavy atom pairs within the cut-off distance.
+        * **Residue–Residue Contact Pairs**: Count of distinct pair mappings between Chain A and Chain B. (Shown in table tab)
+        * **Unique Interface Residues**: Count of singular unique protein residues active on either interface chain.
+        """)
 
-            # Create DataFrame for Unique Interface Residues
-            df_interface_a = pd.DataFrame({"Chain": chain_a, "Residue": sorted(list(interface_residues_a))})
-            df_interface_b = pd.DataFrame({"Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
-            df_interface_all = pd.concat([df_interface_a, df_interface_b], ignore_index=True)
+    with tab_viz:
+        st.subheader("Interactive 3D Structure Viewer")
+        if not df_contacts.empty:
+            # Construct specific styling scripts
+            with open(pdb_filepath, 'r') as f:
+                escaped_pdb = f.read().replace('\n', '\\n').replace('\'', '\\\'').replace('"', '\\"')
+            
+            # Create styling blocks for py3dmol
+            sidechains_js = ""
+            labels_js = ""
+            
+            # Render Contact Sidechains in distinctive styles
+            for res in unique_res_a:
+                # Parse Residue number
+                res_num = ''.join(filter(str.isdigit, res))
+                sidechains_js += f"viewer.addStyle({{chain: '{chain_a_input}', resi: {res_num}}}, {{stick: {{colorscheme: 'cyanCarbon'}}}});\n"
+                labels_js += f"viewer.addLabel('{res}', {{font: 'Arial', fontSize: 10, fontColor: 'white', backgroundOpacity: 0.5, backgroundColor: 'black'}}, {{chain: '{chain_a_input}', resi: {res_num}}});\n"
+                
+            for res in unique_res_b:
+                res_num = ''.join(filter(str.isdigit, res))
+                sidechains_js += f"viewer.addStyle({{chain: '{chain_b_input}', resi: {res_num}}}, {{stick: {{colorscheme: 'orangeCarbon'}}}});\n"
+                labels_js += f"viewer.addLabel('{res}', {{font: 'Arial', fontSize: 10, fontColor: 'white', backgroundOpacity: 0.5, backgroundColor: 'black'}}, {{chain: '{chain_b_input}', resi: {res_num}}});\n"
 
-            # Adjust DataFrame Indexes to be 1-based
-            if not df_pairs.empty:
-                df_pairs.index = df_pairs.index + 1
-            if not df_atoms.empty:
-                df_atoms.index = df_atoms.index + 1
-            if not df_interface_all.empty:
-                df_interface_all.index = df_interface_all.index + 1
+            py3dmol_html = f"""
+            <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative;"></div>
+            <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
+                <button onclick="window.reset3DView()" style="
+                    background-color: #6B7280;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                ">𖤐 Reset 3D View</button>
+                <button onclick="window.downloadPNG()" style="
+                    background-color: #2563EB;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                ">📸 Save 3D View as PNG Image</button>
+                <button onclick="window.downloadJPEG()" style="
+                    background-color: #10B981;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                ">📸 Save 3D View as JPEG Image</button>
+            </div>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
+            <script>
+                var viewer;
+                function initializeViewer() {{
+                    var element = document.getElementById('3dmol_canvas');
+                    if (!element) {{
+                        setTimeout(initializeViewer, 100);
+                        return;
+                    }}
+                    var config = {{ backgroundColor: '{bg_color_option}' }};
+                    viewer = $3Dmol.createViewer(element, config);
+                    viewer.addModel('{escaped_pdb}', 'pdb');
 
-            # Create side-by-side Layout: Left side for 3D molecular view, Right side for filter controls
-            col_visualizer, col_filters = st.columns([3, 1])
+                    // Apply base styles
+                    applyBaseStyles();
+                    viewer.zoomTo();
+                    viewer.render();
+                }}
 
-            with col_filters:
-                st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
-                enable_labels = st.checkbox("Enable Residue Labels", value=True)
+                function applyBaseStyles() {{
+                    if (!viewer) return;
+                    // Clear old styling and labels completely
+                    viewer.setStyle({{}}, {{}});
+                    viewer.clearLabels();
 
-                if contact_links_visualization:
-                    available_pairs = [link["pair_label"] for link in contact_links_visualization]
-                    selected_visual_pairs = st.multiselect(
-                        "Select contact residue pairs to display (leave empty to show all):",
-                        options=available_pairs,
-                        default=[]
-                    )
-                    # Filter links based on selection
-                    if selected_visual_pairs:
-                        filtered_links = [link for link in contact_links_visualization if link["pair_label"] in selected_visual_pairs]
-                    else:
-                        filtered_links = contact_links_visualization
-                else:
-                    filtered_links = []
+                    // Set Ribbon styles for Chains
+                    viewer.setStyle({{chain: '{chain_a_input}'}}, {{cartoon: {{color: '{chain_a_color}'}}}});
+                    viewer.setStyle({{chain: '{chain_b_input}'}}, {{cartoon: {{color: '{chain_b_color}'}}}});
 
-                # Added option to customize the visualizer background color
-                bg_color_option = st.selectbox(
-                    "Viewer Background Color:",
-                    options=["black", "white", "gray"],
-                    format_func=lambda x: x.capitalize(),
-                    index=0
-                )
+                    // Draw sidechain sticks & contact labels
+                    {sidechains_js}
+                    {labels_js}
+                }}
 
-                # Added option to customize chain cartoon colors
-                color_choices = {
-                    "Blue": "#3B82F6",
-                    "Red": "#EF4444",
-                    "Green": "#10B981",
-                    "Purple": "#8B5CF6",
-                    "Orange": "#F59E0B",
-                    "Yellow": "#FBBF24",
-                    "Pink": "#EC4899",
-                    "Cyan": "#06B6D4"
-                }
-                chain_a_color_name = st.selectbox(
-                    f"Chain {chain_a} Color:",
-                    options=list(color_choices.keys()),
-                    index=0 # default Blue
-                )
-                chain_b_color_name = st.selectbox(
-                    f"Chain {chain_b} Color:",
-                    options=list(color_choices.keys()),
-                    index=1 # default Red
-                )
-                chain_a_color = color_choices[chain_a_color_name]
-                chain_b_color = color_choices[chain_b_color_name]
+                // Bind helper functions globally to window context to guarantee button triggers work
+                window.reset3DView = function() {{
+                    if (viewer) {{
+                        applyBaseStyles();
+                        viewer.zoomTo();
+                        viewer.render();
+                    }}
+                }};
 
-            with col_visualizer:
-                st.subheader(f"🔼 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
-                st.write("Interactive 3D representation showing contacting residues linked together.")
+                window.downloadPNG = function() {{
+                    try {{
+                        var canvas = document.getElementsByTagName('canvas')[0];
+                        if (!canvas) throw new Error("Canvas element not found.");
+                        var dataUrl = canvas.toDataURL('image/png');
+                        var link = document.createElement('a');
+                        link.href = dataUrl;
+                        link.download = 'protein_interface_3d_view.png';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }} catch(err) {{
+                        alert('Failed to generate PNG capture: ' + err.message);
+                    }}
+                }};
 
-                if pdb_raw_data:
-                    try:
-                        # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
-                        escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("'", "\\\'")
-
-                        cylinder_lines_js = ""
-                        labels_js = ""
-                        sidechains_js = ""
-
-                        for link in filtered_links:
-                            ca = link["coord_a"]
-                            cb = link["coord_b"]
-                            # Append cylinders (dashed)
-                            cylinder_lines_js += f"""
-                            viewer.addCylinder({{
-                                start: {{x: {ca[0]}, y: {ca[1]}, z: {ca[2]}}},
-                                end: {{x: {cb[0]}, y: {cb[1]}, z: {cb[2]}}},
-                                radius: 0.15,
-                                fromCap: 1,
-                                toCap: 1,
-                                color: 'yellow',
-                                dashed: true
-                            }});
-                            """
-                            # Labels rendering restored to original bordered design
-                            if enable_labels:
-                                labels_js += f"""
-                                viewer.addLabel('{link["label_a"]}', {{fontColor:'black', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#3B82F6'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
-                                viewer.addLabel('{link["label_b"]}', {{fontColor:'black', backgroundColor:'#FEE2E2', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#EF4444'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
-                                """
-                            # Sidechains (Stick styling)
-                            sidechains_js += f"""
-                            viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: 'cyan'}}}});
-                            viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
-                            """
-
-                        py3dmol_html = f"""
-                        <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative;"></div>
-                        <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
-                            <button onclick="window.reset3DView()" style="
-                                background-color: #6B7280;
-                                color: white;
-                                border: none;
-                                padding: 8px 16px;
-                                border-radius: 6px;
-                                font-weight: 600;
-                                cursor: pointer;
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                            ">🔄 Reset 3D View</button>
-                            <button onclick="window.downloadPNG()" style="
-                                background-color: #2563EB;
-                                color: white;
-                                border: none;
-                                padding: 8px 16px;
-                                border-radius: 6px;
-                                font-weight: 600;
-                                cursor: pointer;
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                            ">📸 Save 3D View as PNG Image</button>
-                            <button onclick="window.downloadJPEG()" style="
-                                background-color: #10B981;
-                                color: white;
-                                border: none;
-                                padding: 8px 16px;
-                                border-radius: 6px;
-                                font-weight: 600;
-                                cursor: pointer;
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                            ">📸 Save 3D View as JPEG Image</button>
-                        </div>
-                        <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
-                        <script>
-                            var viewer;
-                            function initializeViewer() {{
-                                var element = document.getElementById('3dmol_canvas');
-                                if (!element) {{
-                                    setTimeout(initializeViewer, 100);
-                                    return;
-                                }}
-                                var config = {{ backgroundColor: '{bg_color_option}' }};
-                                viewer = $3Dmol.createViewer(element, config);
-                                viewer.addModel('{escaped_pdb}', 'pdb');
-
-                                // Clear styling of all molecules/chains
-                                viewer.setStyle({{}}, {{}});
-
-                                // Display ONLY the selected interacting chains with customized colors
-                                viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '{chain_a_color}'}}}});
-                                viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '{chain_b_color}'}}}});
-
-                                {cylinder_lines_js}
-                                {sidechains_js}
-                                {labels_js}
-                                viewer.zoomTo();
-                                viewer.render();
-                            }}
-
-                            // Bind helper functions globally to window context to guarantee button triggers work
-                            window.reset3DView = function() {{
-                                if (viewer) {{
-                                    viewer.zoomTo();
-                                    viewer.render();
-                                }}
-                            }};
-
-                            window.downloadPNG = function() {{
-                                try {{
-                                    var canvas = document.getElementsByTagName('canvas')[0];
-                                    if (!canvas) throw new Error("Canvas element not found.");
-                                    var dataUrl = canvas.toDataURL('image/png');
-                                    var link = document.createElement('a');
-                                    link.href = dataUrl;
-                                    link.download = 'protein_interface_3d_view.png';
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                }} catch(err) {{
-                                    alert('Failed to generate PNG capture: ' + err.message);
-                                }}
-                            }};
-
-                            window.downloadJPEG = function() {{
-                                try {{
-                                    var canvas = document.getElementsByTagName('canvas')[0];
-                                    if (!canvas) throw new Error("Canvas element not found.");
-                                    var dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                                    var link = document.createElement('a');
-                                    link.href = dataUrl;
-                                    link.download = 'protein_interface_3d_view.jpg';
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                }} catch(err) {{
-                                    alert('Failed to generate JPEG capture: ' + err.message);
-                                }}
-                            }};
-                            
-                            if (document.readyState === 'loading') {{
-                                document.addEventListener('DOMContentLoaded', initializeViewer);
-                            }} else {{
-                                initializeViewer();
-                            }}
-                        </script>
-                        """
-                        components.html(py3dmol_html, height=570)
-                    except Exception as e:
-                        st.error(f"Could not render 3D structural model: {e}")
-
-            # --- Inter-chain Contacts Results Table Header ---
-            st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
-
-            # Display Metrics Dashboard rearranged: 1. Unique Interface Residues, 2. Residue-Residue Pairs, 3. Atom-Atom Contacts
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                total_unique_res = len(interface_residues_a) + len(interface_residues_b)
-                st.metric("Unique Interface Residues", f"{total_unique_res} (C1: {len(interface_residues_a)}, C2: {len(interface_residues_b)})")
-            with col2:
-                st.metric("Residue–Residue Pairs", len(df_pairs))
-            with col3:
-                st.metric("Atom–Atom Contacts", len(df_atoms))
-
-            if not df_pairs.empty:
-                # Reordered tabs: 1. Unique Interface, 2. Residue-Residue Pairs, 3. Detailed Atom-Atom
-                tab1, tab2, tab3 = st.tabs([
-                    "🧬 Unique Interface Residues & Property Analysis",
-                    "🔗 Residue-Residue Pairs",
-                    "🔍 Detailed Atom-Atom Contacts"
-                ])
-
-                with tab1:
-                    st.write("**Unique interface residues per chain (no duplicates):**")
-                    st.dataframe(df_interface_all, use_container_width=True)
-                    
-                    # Added PDF download action along with CSV export option inside UI
-                    col_csv, col_pdf = st.columns(2)
-                    with col_csv:
-                        csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
-                        st.download_button(
-                            label="▄ Download Interface Residues CSV",
-                            data=csv_interface,
-                            file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                            mime="text/csv"
-                        )
-                    with col_pdf:
-                        pdf_data = generate_pdf_report(
-                            pdb_name_to_report,
-                            chain_a, 
-                            chain_b, 
-                            selected_cutoff, 
-                            total_unique_res,
-                            len(df_pairs),
-                            len(df_atoms),
-                            df_pairs
-                        )
-                        st.download_button(
-                            label="📄 Download Full PDF Report",
-                            data=pdf_data,
-                            file_name=f"interface_report_{chain_a}_{chain_b}_{selected_cutoff}A.pdf",
-                            mime="application/pdf"
-                        )
-
-                    st.markdown("---")
-
-                    all_unique_res = list(interface_residues_a.union(interface_residues_b))
-                    df_aa_stats, df_groups, aa_counts = get_amino_acid_statistics(all_unique_res)
-
-                    if df_aa_stats is not None:
-                        # Section i: Amino acid frequency distribution with side-by-side bar chart
-                        st.write("**i) Amino acid frequency distribution**")
-                        col_table_i, col_chart_i = st.columns(2)
-                        with col_table_i:
-                            st.dataframe(df_aa_stats, use_container_width=True)
-                            csv_aa_stats = df_aa_stats.to_csv(index=True).encode("utf-8")
-                            st.download_button(
-                                label="▄ Download Amino Acid Frequency CSV",
-                                data=csv_aa_stats,
-                                file_name=f"amino_acid_frequency_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                                mime="text/csv"
-                            )
-                        with col_chart_i:
-                            st.bar_chart(aa_counts, use_container_width=True)
-
-                        st.markdown("---")
-
-                        # Section ii: Group Distributions with side-by-side bar chart
-                        st.write("**ii) Group Distributions**")
-                        col_table_ii, col_chart_ii = st.columns(2)
-                        with col_table_ii:
-                            st.dataframe(df_groups, use_container_width=True)
-                            csv_groups = df_groups.to_csv(index=True).encode("utf-8")
-                            st.download_button(
-                                label="▄ Download Group Distribution CSV",
-                                data=csv_groups,
-                                file_name=f"amino_acid_groups_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                                mime="text/csv"
-                            )
-                        with col_chart_ii:
-                            st.bar_chart(df_groups.set_index("Category")["Count"], use_container_width=True)
-                    else:
-                        st.write("No residues to display properties for.")
-
-                with tab2:
-                    st.dataframe(df_pairs, use_container_width=True)
-                    csv_pairs = df_pairs.to_csv(index=True).encode("utf-8")
-                    st.download_button(
-                        label="▄ Download Residue Pairs CSV",
-                        data=csv_pairs,
-                        file_name=f"residue_pairs_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                        mime="text/csv"
-                    )
-
-                with tab3:
-                    st.dataframe(df_atoms, use_container_width=True)
-                    csv_atoms = df_atoms.to_csv(index=True).encode("utf-8")
-                    st.download_button(
-                        label="▄ Download Atom Contacts CSV",
-                        data=csv_atoms,
-                        file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                        mime="text/csv"
-                    )
-            else:
-                st.info(f"No contacts found between Chain {chain_a} and Chain {chain_b} within {selected_cutoff} Å.")
-else:
-    st.info("Please load a structure from the sidebar to begin analyzing contact residues.")
+                window.downloadJPEG = function() {{
+                    try {{
+                        var canvas = document.getElementsByTagName('canvas')[0];
+                        if (!canvas) throw new Error("Canvas element not found.");
+                        var dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                        var link = document.createElement('a');
+                        link.href = dataUrl;
+                        link.download = 'protein_interface_3d_view.jpg';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }} catch(err) {{
+                        alert('Failed to generate JPEG capture: ' + err.message);
+                    }}
+                }};
+                
+                if (document.readyState === 'loading') {{
+                    document.addEventListener('DOMContentLoaded', initializeViewer);
+                }} else {{
+                    initializeViewer();
+                }}
+            </script>
+            """
+            components.html(py3dmol_html, height=600)
+        else:
+            st.info("No structures loaded under current filter criteria.")
