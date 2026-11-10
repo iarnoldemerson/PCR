@@ -123,7 +123,7 @@ structure = None
 pdb_raw_data = None
 
 if input_method == "Fetch from PDB (RCSB)":
-    pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 1A8O):", "1A8O").strip()
+    pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "6Q9O").strip()
     if pdb_id:
         try:
             pdbl = PDBList()
@@ -305,11 +305,11 @@ if structure:
                                 dashed: true
                             }});
                             """
-                            # Labels rendering depends on user input
+                            # Labels rendering with transparent background
                             if enable_labels:
                                 labels_js += f"""
-                                viewer.addLabel('{link["label_a"]}', {{fontColor:'white', backgroundColor:'#3B82F6', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
-                                viewer.addLabel('{link["label_b"]}', {{fontColor:'white', backgroundColor:'#EF4444', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
+                                viewer.addLabel('{link["label_a"]}', {{fontColor:'blue', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.0, borderThickness:0.0}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}});
+                                viewer.addLabel('{link["label_b"]}', {{fontColor:'red', backgroundColor:'#FEE2E2', fontSize:10, backgroundOpacity:0.0, borderThickness:0.0}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
                                 """
                             # Sidechains (Stick styling)
                             sidechains_js += f"""
@@ -326,10 +326,10 @@ if structure:
                             var viewer = $3Dmol.createViewer(element, config);
                             viewer.addModel('{escaped_pdb}', 'pdb');
 
-                            // Clear styling of all molecules/chains to keep non-selected chains hidden
+                            // Clear styling of all molecules/chains
                             viewer.setStyle({{}}, {{}});
 
-                            // Display ONLY the two selected interacting chains, leaving others hidden
+                            // Display ONLY the selected interacting chains
                             viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '#3B82F6'}}}});
                             viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '#EF4444'}}}});
 
