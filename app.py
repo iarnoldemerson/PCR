@@ -8,6 +8,12 @@ import io
 import os
 import streamlit.components.v1 as components
 
+# ReportLab imports for PDF generation
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
 # Inject Custom CSS to highlight Titles, Tabs and Sidebar Headers
@@ -114,6 +120,104 @@ def get_amino_acid_statistics(all_unique_res):
 
     return df_aa_stats, df_groups, aa_counts
 
+def generate_pdf_report(pdb_id, chain_a, chain_b, cutoff, unique_residues_count, pairs_count, atoms_count, df_pairs_data):
+    """Generates a custom styled PDF containing the distance parameters and interface contact tables."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading1'],
+        fontSize=22,
+        leading=26,
+        textColor=colors.HexColor('#1E3A8A'),
+        spaceAfter=15
+    )
+    section_style = ParagraphStyle(
+        'DocSub',
+        parent=styles['Heading2'],
+        fontSize=14,
+        leading=18,
+        textColor=colors.HexColor('#2563EB'),
+        spaceBefore=12,
+        spaceAfter=8
+    )
+    body_style = ParagraphStyle(
+        'DocBody',
+        parent=styles['BodyText'],
+        fontSize=10,
+        leading=14
+    )
+    
+    # Title & Metadata
+    story.append(Paragraph("⚕️ Protein Contact Residue Report", title_style))
+    story.append(Paragraph(f"<b>Target Structure:</b> {pdb_id if pdb_id else 'Uploaded File'}", body_style))
+    story.append(Paragraph(f"<b>Analysed Chains:</b> Chain {chain_a} & Chain {chain_b}", body_style))
+    story.append(Paragraph(f"<b>Cut-off Distance Threshold:</b> {cutoff} Å", body_style))
+    story.append(Spacer(1, 10))
+    
+    # Summary metrics table
+    story.append(Paragraph("Summary Interface Metrics", section_style))
+    metric_data = [
+        ["Unique Interface Residues", "Residue-Residue Contact Pairs", "Atom-Atom Contact Counts"],
+        [str(unique_residues_count), str(pairs_count), str(atoms_count)]
+    ]
+    metric_table = Table(metric_data, colWidths=[180, 180, 150])
+    metric_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F3F4F6')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#1F2937')),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D1D5DB')),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+    ]))
+    story.append(metric_table)
+    story.append(Spacer(1, 15))
+    
+    # Contact Pairs Table
+    story.append(Paragraph("Contact Residue Pairs Detail Table", section_style))
+    if not df_pairs_data.empty:
+        # Format top contacts to fit nicely in report
+        top_df = df_pairs_data.head(50) 
+        header = ["#", "Residue A", "Residue A ID", "Residue B", "Residue B ID", "Min Distance (Å)", "Closest Atoms"]
+        table_rows = [header]
+        
+        for idx, row in top_df.iterrows():
+            table_rows.append([
+                str(idx),
+                str(row["Residue A Name"]),
+                str(row["Residue A ID"]),
+                str(row["Residue B Name"]),
+                str(row["Residue B ID"]),
+                str(row["Minimum Distance (Å)"]),
+                str(row["Closest Atoms (A-B)"])
+            ])
+            
+        pairs_table = Table(table_rows, colWidths=[30, 80, 80, 80, 80, 100, 80])
+        pairs_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#3B82F6')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0,0), (-1,0), 5),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E5E7EB')),
+            ('FONTSIZE', (0,0), (-1,-1), 8),
+        ]))
+        story.append(pairs_table)
+        if len(df_pairs_data) > 50:
+            story.append(Spacer(1, 5))
+            story.append(Paragraph("<i>*Only showing first 50 contacts in PDF export. Please download CSV for full interface payload.</i>", body_style))
+    else:
+        story.append(Paragraph("No contacts identified for current parameters.", body_style))
+        
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
 # Sidebar with styled headers
 st.sidebar.markdown('<div class="sidebar-header-highlight">1. Load PDB Structure</div>', unsafe_allow_html=True)
 input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upload PDB File"))
@@ -121,10 +225,12 @@ input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upl
 parser = PDBParser(QUIET=True)
 structure = None
 pdb_raw_data = None
+pdb_name_to_report = ""
 
 if input_method == "Fetch from PDB (RCSB)":
     pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "6Q9O").strip()
     if pdb_id:
+        pdb_name_to_report = pdb_id.upper()
         try:
             pdbl = PDBList()
             pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=".", file_format="pdb")
@@ -138,6 +244,7 @@ if input_method == "Fetch from PDB (RCSB)":
 else:
     uploaded_file = st.sidebar.file_uploader("Upload a .pdb file:", type=["pdb"])
     if uploaded_file is not None:
+        pdb_name_to_report = uploaded_file.name
         try:
             raw_bytes = uploaded_file.getvalue()
             pdb_raw_data = raw_bytes.decode("utf-8")
@@ -275,7 +382,6 @@ if structure:
                     else:
                         filtered_links = contact_links_visualization
                 else:
-                    st.info("No contacts available to filter.")
                     filtered_links = []
 
                 # Added option to customize the visualizer background color
@@ -473,13 +579,34 @@ if structure:
                 with tab1:
                     st.write("**Unique interface residues per chain (no duplicates):**")
                     st.dataframe(df_interface_all, use_container_width=True)
-                    csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
-                    st.download_button(
-                        label="▄ Download Interface Residues CSV",
-                        data=csv_interface,
-                        file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                        mime="text/csv"
-                    )
+                    
+                    # Added PDF download action along with CSV export option inside UI
+                    col_csv, col_pdf = st.columns(2)
+                    with col_csv:
+                        csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
+                        st.download_button(
+                            label="▄ Download Interface Residues CSV",
+                            data=csv_interface,
+                            file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                            mime="text/csv"
+                        )
+                    with col_pdf:
+                        pdf_data = generate_pdf_report(
+                            pdb_name_to_report,
+                            chain_a, 
+                            chain_b, 
+                            selected_cutoff, 
+                            total_unique_res,
+                            len(df_pairs),
+                            len(df_atoms),
+                            df_pairs
+                        )
+                        st.download_button(
+                            label="📄 Download Full PDF Report",
+                            data=pdf_data,
+                            file_name=f"interface_report_{chain_a}_{chain_b}_{selected_cutoff}A.pdf",
+                            mime="application/pdf"
+                        )
 
                     st.markdown("---")
 
