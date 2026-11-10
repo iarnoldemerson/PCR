@@ -1,5 +1,4 @@
 
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -364,7 +363,9 @@ if structure:
                             // Interactive canvas to image snapshot exporter (PNG)
                             document.getElementById('download_png_btn').addEventListener('click', function() {{
                                 try {{
-                                    var dataUrl = viewer.png();
+                                    var canvas = document.querySelector('#3dmol_canvas canvas');
+                                    if (!canvas) throw new Error("Canvas element not found.");
+                                    var dataUrl = canvas.toDataURL('image/png');
                                     var link = document.createElement('a');
                                     link.href = dataUrl;
                                     link.download = 'protein_interface_3d_view.png';
@@ -379,23 +380,15 @@ if structure:
                             // Interactive canvas to image snapshot exporter (JPEG)
                             document.getElementById('download_jpeg_btn').addEventListener('click', function() {{
                                 try {{
-                                    // 3Dmol viewer.png() returns base64 string directly; we can draw it to canvas for JPEG conversion
-                                    var img = new Image();
-                                    img.onload = function() {{
-                                        var canvas = document.createElement('canvas');
-                                        canvas.width = img.width;
-                                        canvas.height = img.height;
-                                        var ctx = canvas.getContext('2d');
-                                        ctx.drawImage(img, 0, 0);
-                                        var jpegUrl = canvas.toDataURL('image/jpeg', 0.9);
-                                        var link = document.createElement('a');
-                                        link.href = jpegUrl;
-                                        link.download = 'protein_interface_3d_view.jpg';
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                    }};
-                                    img.src = viewer.png();
+                                    var canvas = document.querySelector('#3dmol_canvas canvas');
+                                    if (!canvas) throw new Error("Canvas element not found.");
+                                    var dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                                    var link = document.createElement('a');
+                                    link.href = dataUrl;
+                                    link.download = 'protein_interface_3d_view.jpg';
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
                                 }} catch(err) {{
                                     alert('Failed to generate JPEG capture: ' + err.message);
                                 }}
