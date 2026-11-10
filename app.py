@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -233,8 +234,8 @@ if structure:
                                 "coord_b": visual_atom_pair[1],
                                 "label_a": f"{res_a.get_resname()}{res_a.id[1]}",
                                 "label_b": f"{res_b.get_resname()}{res_b.id[1]}",
-                                "spec_a": {"chain": chain_a, "resi": res_a.id[1]},
-                                "spec_b": {"chain": chain_b, "resi": res_b.id[1]}
+                                "spec_a": { "chain": chain_a, "resi": res_a.id[1] },
+                                "spec_b": { "chain": chain_b, "resi": res_b.id[1] }
                             })
 
             # Convert results to lists/DataFrames
@@ -363,7 +364,7 @@ if structure:
                             // Interactive canvas to image snapshot exporter (PNG)
                             document.getElementById('download_png_btn').addEventListener('click', function() {{
                                 try {{
-                                    var canvas = document.querySelector('#3dmol_canvas canvas');
+                                    var canvas = document.getElementsByTagName('canvas')[0];
                                     if (!canvas) throw new Error("Canvas element not found.");
                                     var dataUrl = canvas.toDataURL('image/png');
                                     var link = document.createElement('a');
@@ -380,7 +381,7 @@ if structure:
                             // Interactive canvas to image snapshot exporter (JPEG)
                             document.getElementById('download_jpeg_btn').addEventListener('click', function() {{
                                 try {{
-                                    var canvas = document.querySelector('#3dmol_canvas canvas');
+                                    var canvas = document.getElementsByTagName('canvas')[0];
                                     if (!canvas) throw new Error("Canvas element not found.");
                                     var dataUrl = canvas.toDataURL('image/jpeg', 0.9);
                                     var link = document.createElement('a');
