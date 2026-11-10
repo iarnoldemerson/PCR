@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -87,6 +88,7 @@ def get_amino_acid_statistics(all_unique_res):
     """Calculates residue frequencies, group distributions, and prepares dataframes for analysis."""
     res_names_only = [res[:3].upper() for res in all_unique_res if len(res) >= 3]
     tot_unique = len(res_names_only)
+
 
     if tot_unique == 0:
         return None, None, None
@@ -259,6 +261,7 @@ if structure:
 
             with col_filters:
                 st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
+                enable_labels = st.checkbox("Enable Residue Labels", value=True)
                 if contact_links_visualization:
                     available_pairs = [link["pair_label"] for link in contact_links_visualization]
                     selected_visual_pairs = st.multiselect(
@@ -303,11 +306,12 @@ if structure:
                                 dashed: true
                             }});
                             """
-                            # Labels
-                            labels_js += f"""
-                            viewer.addLabel('{link["label_a"]}', {{fontColor:'white', backgroundColor:'#3B82F6', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
-                            viewer.addLabel('{link["label_b"]}', {{fontColor:'white', backgroundColor:'#EF4444', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
-                            """
+                            # Labels rendering depends on user input
+                            if enable_labels:
+                                labels_js += f"""
+                                viewer.addLabel('{link["label_a"]}', {{fontColor:'white', backgroundColor:'#3B82F6', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
+                                viewer.addLabel('{link["label_b"]}', {{fontColor:'white', backgroundColor:'#EF4444', fontSize:10, backgroundOpacity:0.8}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
+                                """
                             # Sidechains (Stick styling)
                             sidechains_js += f"""
                             viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: 'cyan'}}}});
