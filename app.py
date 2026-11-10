@@ -507,12 +507,12 @@ if structure:
                             {cylinder_lines_js}
                             {sidechains_js}
                             {labels_js}
-                            viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
+                            viewer.zoomTo();
                             viewer.render();
 
                             // Reset camera orientation and zoom
                             document.getElementById('reset_view_btn').addEventListener('click', function() {{
-                                viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
+                                viewer.zoomTo();
                                 viewer.render();
                             }});
 
