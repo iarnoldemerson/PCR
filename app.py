@@ -126,7 +126,7 @@ def generate_pdf_report(pdb_id, chain_a, chain_b, cutoff, unique_residues_count,
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     story = []
     styles = getSampleStyleSheet()
-    
+
     # Custom styles
     title_style = ParagraphStyle(
         'DocTitle',
@@ -151,14 +151,14 @@ def generate_pdf_report(pdb_id, chain_a, chain_b, cutoff, unique_residues_count,
         fontSize=10,
         leading=14
     )
-    
+
     # Title & Metadata
     story.append(Paragraph("⚕️ Protein Contact Residue Report", title_style))
     story.append(Paragraph(f"<b>Target Structure:</b> {pdb_id if pdb_id else 'Uploaded File'}", body_style))
     story.append(Paragraph(f"<b>Analysed Chains:</b> Chain {chain_a} & Chain {chain_b}", body_style))
     story.append(Paragraph(f"<b>Cut-off Distance Threshold:</b> {cutoff} Å", body_style))
     story.append(Spacer(1, 10))
-    
+
     # Summary metrics table
     story.append(Paragraph("Summary Interface Metrics", section_style))
     metric_data = [
@@ -177,15 +177,15 @@ def generate_pdf_report(pdb_id, chain_a, chain_b, cutoff, unique_residues_count,
     ]))
     story.append(metric_table)
     story.append(Spacer(1, 15))
-    
+
     # Contact Pairs Table
     story.append(Paragraph("Contact Residue Pairs Detail Table", section_style))
     if not df_pairs_data.empty:
         # Format top contacts to fit nicely in report
-        top_df = df_pairs_data.head(50) 
+        top_df = df_pairs_data.head(50)
         header = ["#", "Residue A", "Residue A ID", "Residue B", "Residue B ID", "Min Distance (Å)", "Closest Atoms"]
         table_rows = [header]
-        
+
         for idx, row in top_df.iterrows():
             table_rows.append([
                 str(idx),
@@ -196,7 +196,7 @@ def generate_pdf_report(pdb_id, chain_a, chain_b, cutoff, unique_residues_count,
                 str(row["Minimum Distance (Å)"]),
                 str(row["Closest Atoms (A-B)"])
             ])
-            
+
         pairs_table = Table(table_rows, colWidths=[30, 80, 80, 80, 80, 100, 80])
         pairs_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#3B82F6')),
@@ -213,7 +213,7 @@ def generate_pdf_report(pdb_id, chain_a, chain_b, cutoff, unique_residues_count,
             story.append(Paragraph("<i>*Only showing first 50 contacts in PDF export. Please download CSV for full interface payload.</i>", body_style))
     else:
         story.append(Paragraph("No contacts identified for current parameters.", body_style))
-        
+
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
@@ -459,7 +459,7 @@ if structure:
                         py3dmol_html = f"""
                         <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative;"></div>
                         <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
-                            <button id="reset_view_btn" style="
+                            <button onclick="window.reset3DView()" style="
                                 background-color: #6B7280;
                                 color: white;
                                 border: none;
@@ -469,7 +469,7 @@ if structure:
                                 cursor: pointer;
                                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                             ">🔄 Reset 3D View</button>
-                            <button id="download_png_btn" style="
+                            <button onclick="window.downloadPNG()" style="
                                 background-color: #2563EB;
                                 color: white;
                                 border: none;
@@ -479,7 +479,7 @@ if structure:
                                 cursor: pointer;
                                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                             ">📸 Save 3D View as PNG Image</button>
-                            <button id="download_jpeg_btn" style="
+                            <button onclick="window.downloadJPEG()" style="
                                 background-color: #10B981;
                                 color: white;
                                 border: none;
@@ -492,32 +492,40 @@ if structure:
                         </div>
                         <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
                         <script>
-                            var element = document.getElementById('3dmol_canvas');
-                            var config = {{ backgroundColor: '{bg_color_option}' }};
-                            var viewer = $3Dmol.createViewer(element, config);
-                            viewer.addModel('{escaped_pdb}', 'pdb');
+                            var viewer;
+                            function initializeViewer() {{
+                                var element = document.getElementById('3dmol_canvas');
+                                if (!element) {{
+                                    setTimeout(initializeViewer, 100);
+                                    return;
+                                }}
+                                var config = {{ backgroundColor: '{bg_color_option}' }};
+                                viewer = $3Dmol.createViewer(element, config);
+                                viewer.addModel('{escaped_pdb}', 'pdb');
 
-                            // Clear styling of all molecules/chains
-                            viewer.setStyle({{}}, {{}});
+                                // Clear styling of all molecules/chains
+                                viewer.setStyle({{}}, {{}});
 
-                            // Display ONLY the selected interacting chains with customized colors
-                            viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '{chain_a_color}'}}}});
-                            viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '{chain_b_color}'}}}});
+                                // Display ONLY the selected interacting chains with customized colors
+                                viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '{chain_a_color}'}}}});
+                                viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '{chain_b_color}'}}}});
 
-                            {cylinder_lines_js}
-                            {sidechains_js}
-                            {labels_js}
-                            viewer.zoomTo();
-                            viewer.render();
-
-                            // Reset camera orientation and zoom
-                            document.getElementById('reset_view_btn').addEventListener('click', function() {{
+                                {cylinder_lines_js}
+                                {sidechains_js}
+                                {labels_js}
                                 viewer.zoomTo();
                                 viewer.render();
-                            }});
+                            }}
 
-                            // Interactive canvas to image snapshot exporter (PNG)
-                            document.getElementById('download_png_btn').addEventListener('click', function() {{
+                            // Bind helper functions globally to window context to guarantee button triggers work
+                            window.reset3DView = function() {{
+                                if (viewer) {{
+                                    viewer.zoomTo();
+                                    viewer.render();
+                                }}
+                            }};
+
+                            window.downloadPNG = function() {{
                                 try {{
                                     var canvas = document.getElementsByTagName('canvas')[0];
                                     if (!canvas) throw new Error("Canvas element not found.");
@@ -531,10 +539,9 @@ if structure:
                                 }} catch(err) {{
                                     alert('Failed to generate PNG capture: ' + err.message);
                                 }}
-                            }});
+                            }};
 
-                            // Interactive canvas to image snapshot exporter (JPEG)
-                            document.getElementById('download_jpeg_btn').addEventListener('click', function() {{
+                            window.downloadJPEG = function() {{
                                 try {{
                                     var canvas = document.getElementsByTagName('canvas')[0];
                                     if (!canvas) throw new Error("Canvas element not found.");
@@ -548,7 +555,13 @@ if structure:
                                 }} catch(err) {{
                                     alert('Failed to generate JPEG capture: ' + err.message);
                                 }}
-                            }});
+                            }};
+                            
+                            if (document.readyState === 'loading') {{
+                                document.addEventListener('DOMContentLoaded', initializeViewer);
+                            }} else {{
+                                initializeViewer();
+                            }}
                         </script>
                         """
                         components.html(py3dmol_html, height=570)
