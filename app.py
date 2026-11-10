@@ -261,7 +261,7 @@ if structure:
             with col_filters:
                 st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
                 enable_labels = st.checkbox("Enable Residue Labels", value=True)
-                
+
                 # Added option to customize the visualizer background color
                 bg_color_option = st.selectbox(
                     "Viewer Background Color:",
@@ -269,10 +269,34 @@ if structure:
                     format_func=lambda x: x.capitalize(),
                     index=0
                 )
-                
+
+                # Added option to customize chain cartoon colors
+                color_choices = {
+                    "Blue": "#3B82F6",
+                    "Red": "#EF4444",
+                    "Green": "#10B981",
+                    "Purple": "#8B5CF6",
+                    "Orange": "#F59E0B",
+                    "Yellow": "#FBBF24",
+                    "Pink": "#EC4899",
+                    "Cyan": "#06B6D4"
+                }
+                chain_a_color_name = st.selectbox(
+                    f"Chain {chain_a} Color:",
+                    options=list(color_choices.keys()),
+                    index=0 # default Blue
+                )
+                chain_b_color_name = st.selectbox(
+                    f"Chain {chain_b} Color:",
+                    options=list(color_choices.keys()),
+                    index=1 # default Red
+                )
+                chain_a_color = color_choices[chain_a_color_name]
+                chain_b_color = color_choices[chain_b_color_name]
+
                 if contact_links_visualization:
                     available_pairs = [link["pair_label"] for link in contact_links_visualization]
-                    selected_visual_pairs = st.multiselect( 
+                    selected_visual_pairs = st.multiselect(
                         "Select contact residue pairs to display (leave empty to show all):",
                         options=available_pairs,
                         default=[]
@@ -360,9 +384,9 @@ if structure:
                             // Clear styling of all molecules/chains
                             viewer.setStyle({{}}, {{}});
 
-                            // Display ONLY the selected interacting chains
-                            viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '#3B82F6'}}}});
-                            viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '#EF4444'}}}});
+                            // Display ONLY the selected interacting chains with customized colors
+                            viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '{chain_a_color}'}}}});
+                            viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '{chain_b_color}'}}}});
 
                             {cylinder_lines_js}
                             {sidechains_js}
