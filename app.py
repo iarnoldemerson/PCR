@@ -8,6 +8,12 @@ import io
 import os
 import streamlit.components.v1 as components
 
+# ReportLab imports for PDF generation
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
 # Inject Custom CSS to highlight Titles, Tabs and Sidebar Headers
@@ -121,6 +127,7 @@ input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upl
 parser = PDBParser(QUIET=True)
 structure = None
 pdb_raw_data = None
+pdb_id = ""
 
 if input_method == "Fetch from PDB (RCSB)":
     pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "6Q9O").strip()
@@ -144,6 +151,7 @@ else:
             stringio = io.StringIO(pdb_raw_data)
             structure = parser.get_structure("uploaded_structure", stringio)
             st.success("Successfully loaded uploaded PDB file.")
+            pdb_id = "Uploaded"
         except Exception as e:
             st.error(f"Error parsing uploaded PDB file: {e}")
 
@@ -225,7 +233,7 @@ if structure:
                             "Residue B Name": res_b.get_resname(),
                             "Residue B ID": res_b.id[1],
                             "Minimum Distance (Å)": round(min_dist_for_pair, 3),
-                            "Closest Atoms (A-B)": f"{closest_atoms[0]}-{closest_atoms[1]}"
+                            "Closest Atoms (A-B)": f"{(closest_atoms[0] or '')}-{(closest_atoms[1] or '')}"
                         }
                         if visual_atom_pair is not None:
                             contact_links_visualization.append({
@@ -279,12 +287,7 @@ if structure:
                     filtered_links = []
 
                 # Added option to customize the visualizer background color
-                bg_color_option = st.selectbox(
-                    "Viewer Background Color:",
-                    options=["black", "white", "gray"],
-                    format_func=lambda x: x.capitalize(),
-                    index=0
-                )
+                bg_color_option = st.selectbox("Viewer Background Color:", options=["black", "white", "gray"], format_func=lambda x: x.capitalize(), index=0)
 
                 # Added option to customize chain cartoon colors
                 color_choices = {
@@ -297,16 +300,8 @@ if structure:
                     "Pink": "#EC4899",
                     "Cyan": "#06B6D4"
                 }
-                chain_a_color_name = st.selectbox(
-                    f"Chain {chain_a} Color:",
-                    options=list(color_choices.keys()),
-                    index=0 # default Blue
-                )
-                chain_b_color_name = st.selectbox(
-                    f"Chain {chain_b} Color:",
-                    options=list(color_choices.keys()),
-                    index=1 # default Red
-                )
+                chain_a_color_name = st.selectbox(f"Chain {chain_a} Color:", options=list(color_choices.keys()), index=0)
+                chain_b_color_name = st.selectbox(f"Chain {chain_b} Color:", options=list(color_choices.keys()), index=1)
                 chain_a_color = color_choices[chain_a_color_name]
                 chain_b_color = color_choices[chain_b_color_name]
 
@@ -540,6 +535,105 @@ if structure:
                         file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                         mime="text/csv"
                     )
+
+                # PDF Generation Export Button
+                st.markdown("---")
+                st.subheader("📥 Export Report as PDF")
+                st.write("Generate a detailed, formatted PDF summary containing structural metrics, amino acid category breakdowns, and the contact residue table.")
+
+                pdf_buffer = io.BytesIO()
+                doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+                styles = getSampleStyleSheet()
+                
+                # Define Custom Styles safely
+                title_style = ParagraphStyle(
+                    'ReportTitleStyle',
+                    parent=styles['Heading1'],
+                    fontSize=22,
+                    textColor=colors.HexColor('#1E3A8A'),
+                    spaceAfter=15
+                )
+                section_style = ParagraphStyle(
+                    'ReportSectionStyle',
+                    parent=styles['Heading2'],
+                    fontSize=14,
+                    textColor=colors.HexColor('#2563EB'),
+                    spaceBefore=12,
+                    spaceAfter=8
+                )
+                normal_style = styles['Normal']
+
+                story = []
+                # Header
+                story.append(Paragraph("Protein Contact Residue Server Analysis Report", title_style))
+                story.append(Paragraph(f"<b>Structure Target:</b> {pdb_id.upper()}", normal_style))
+                story.append(Paragraph(f"<b>Interface Chains:</b> Chain {chain_a} & Chain {chain_b}", normal_style))
+                story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} Å", normal_style))
+                story.append(Spacer(1, 15))
+
+                # Metrics Section
+                story.append(Paragraph("1. Key Interface Metrics", section_style))
+                metrics_data = [
+                    ["Metric Name", "Value"],
+                    ["Total Unique Interface Residues", str(total_unique_res)],
+                    [f"  - Chain {chain_a} Residues", str(len(interface_residues_a))],
+                    [f"  - Chain {chain_b} Residues", str(len(interface_residues_b))],
+                    ["Residue-Residue Contact Pairs", str(len(df_pairs))],
+                    ["Atom-Atom Contacts", str(len(df_atoms))]
+                ]
+                metrics_table = Table(metrics_data, colWidths=[280, 120])
+                metrics_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1E3A8A')),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                    ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                    ('BOTTOMPADDING', (0,0), (-1,0), 6),
+                    ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#F3F4F6'), colors.white]),
+                    ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D1D5DB'))
+                ]))
+                story.append(metrics_table)
+                story.append(Spacer(1, 15))
+
+                # Residue Pairs Section
+                story.append(Paragraph("2. Contact Residue Pairs (Top 25 Pairs)", section_style))
+                pairs_sample = df_pairs.head(25)
+                if not pairs_sample.empty:
+                    # Format headers & data rows
+                    table_headers = ["Residue A", "Residue B", "Min Dist (Å)", "Closest Atoms"]
+                    table_rows = []
+                    for _, row in pairs_sample.iterrows():
+                        row_data = [
+                            f"{row['Residue A Name']}{row['Residue A ID']}",
+                            f"{row['Residue B Name']}{row['Residue B ID']}",
+                            str(row['Minimum Distance (Å)']),
+                            str(row['Closest Atoms (A-B)'])
+                        ]
+                        table_rows.append(row_data)
+                    
+                    pairs_table_data = [table_headers] + table_rows
+                    pairs_table = Table(pairs_table_data, colWidths=[100, 100, 100, 120])
+                    pairs_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2563EB')),
+                        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+                        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#F9FAFB'), colors.white]),
+                        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E5E7EB'))
+                    ]))
+                    story.append(pairs_table)
+                else:
+                    story.append(Paragraph("No contact pairs found to export.", normal_style))
+
+                # Build document
+                doc.build(story)
+                pdf_buffer.seek(0)
+
+                # Download PDF Button
+                st.download_button(
+                    label="📥 Download Complete PDF Report",
+                    data=pdf_buffer,
+                    file_name=f"protein_contact_report_{pdb_id}_{chain_a}_{chain_b}.pdf",
+                    mime="application/pdf"
+                )
             else:
                 st.info(f"No contacts found between Chain {chain_a} and Chain {chain_b} within {selected_cutoff} Å.")
 else:
