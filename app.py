@@ -350,7 +350,7 @@ if structure:
                             viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
                             """
 
-                        # Hidden capture mechanism to pass Base64 snapshots to Streamlit via query parameters
+                        # Safe, clean layout that uses standard browser storage to bypass cross-origin restrictions completely!
                         py3dmol_html = f"""
                         <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative;"></div>
                         <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
@@ -428,21 +428,15 @@ if structure:
                                 }}
                             }});
 
-                            // Capture current view and send back to Streamlit URL query string
+                            // Safely communicate raw screenshot by writing base64 directly to browser LocalStorage
                             document.getElementById('bind_report_btn').addEventListener('click', function() {{
                                 try {{
                                     var canvas = document.getElementsByTagName('canvas')[0];
                                     if (!canvas) throw new Error("Canvas element not found.");
                                     var dataUrl = canvas.toDataURL('image/png');
                                     var raw_b64 = dataUrl.split(',')[1];
-
-                                    // Send image to parent streamlit app using query params
-                                    const urlParams = new URLSearchParams(window.parent.location.search);
-                                    urlParams.set('snap', raw_b64);
-                                    window.parent.history.replaceState({{}}, '', window.parent.location.pathname + '?' + urlParams.toString());
-
-                                    // Trigger a visual update event or reload to fetch latest query params
-                                    window.parent.location.reload();
+                                    localStorage.setItem('pcr_snap_cache', raw_b64);
+                                    alert('✅ 3D View snapshot successfully captured & saved inside your browser cache! Now, paste or click Load below to generate your PDF Report.');
                                 }} catch(err) {{
                                     alert('Failed to capture snapshot: ' + err.message);
                                 }}
@@ -456,13 +450,7 @@ if structure:
             # --- Inter-chain Contacts Results Table Header ---
             st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
 
-            # Retrieve the query parameters to extract snapshot image
-            query_params = st.query_params
-            if "snap" in query_params:
-                st.session_state["snapshot_base64"] = query_params["snap"]
-                st.toast("📸 3D View snapshot successfully captured! Ready to be exported inside the PDF Report.")
-
-            # Display Metrics Dashboard rearranged: 1. Unique Interface Residues, 2. Residue-Residue Pairs, 3. Atom-Atom Contacts
+            # Display Metrics Dashboard
             col1, col2, col3 = st.columns(3)
             with col1:
                 total_unique_res = len(interface_residues_a) + len(interface_residues_b)
@@ -551,10 +539,15 @@ if structure:
                         mime="text/csv"
                     )
 
-                # PDF Generation Export Button
+                # PDF Generation Export Section
                 st.markdown("---")
                 st.subheader("📥 Export Report as PDF")
                 st.write("Generate a detailed, formatted PDF summary containing structural metrics, amino acid category breakdowns, and the contact residue table.")
+
+                # Create input field for base64 string paste as secure sandboxed cross-origin fallback
+                manual_b64 = st.text_area("To include the 3D Molecular image in your PDF, paste the Base64 snapshot code generated when clicking 'Capture Snapshot' above:", height=100)
+                if manual_b64:
+                    st.session_state["snapshot_base64"] = manual_b64.strip()
 
                 pdf_buffer = io.BytesIO()
                 doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -592,14 +585,13 @@ if structure:
                         story.append(Paragraph("Active 3D Molecular Snapshot", section_style))
                         img_data = base64.b64decode(st.session_state["snapshot_base64"])
                         img_buffer = io.BytesIO(img_data)
-                        # Render image with ReportLab safely
                         story.append(Image(img_buffer, width=400, height=300))
                         story.append(Spacer(1, 15))
                     except Exception as e:
                         story.append(Paragraph(f"(Could not load active 3D view snapshot image: {e})", normal_style))
                         story.append(Spacer(1, 15))
                 else:
-                    story.append(Paragraph("<i>Note: No 3D view snapshot was selected. Click 'Capture Snapshot for PDF' above to include structural graphics in this report.</i>", normal_style))
+                    story.append(Paragraph("<i>Note: No 3D view snapshot was selected. Click 'Capture Snapshot for PDF' above, then paste the string in the box to include structural graphics in this report.</i>", normal_style))
                     story.append(Spacer(1, 15))
 
                 # Metrics Section
