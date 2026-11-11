@@ -1,5 +1,4 @@
 
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -80,13 +79,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Display Highlighted Title
-st.markdown("<div class=\"main-title\">⚕️ Protein Contact Residue Server</div>", unsafe_allow_html=True)
+st.markdown("<div class=\"main-title\">⚕  Protein Contact Residue Server</div>", unsafe_allow_html=True)
 st.write("Determine contact residues between two protein chains using customizable distance thresholds.")
 
 # Create Main Tabs at the top of the page
-main_tab_analysis, main_tab_help = st.tabs([
-    "🔬 Interface Analysis & 3D Viewer",
-    "❓ Help Guide"
+main_tab_analysis, main_tab_help, main_tab_about = st.tabs([
+    "  Interface Analysis & 3D Viewer",
+    "❓ Help Guide",
+    "ℹ  About us"
 ])
 
 # Operational chemical classifications of amino acids
@@ -165,10 +165,10 @@ else:
 
 # Main Tab 2: Help Guide (Rendered at top of the page)
 with main_tab_help:
-    st.markdown("### 📘 Structural Interface Analysis Guide")
+    st.markdown("### │ Structural Interface Analysis Guide")
     st.write("Welcome to the reference guide and operating manual for this application. Below are step-by-step instructions for executing your contact calculations and interacting with your results.")
 
-    st.markdown("#### 🚀 Step-by-Step Instructions")
+    st.markdown("####   Step-by-Step Instructions")
     st.markdown("""
     1. **Load Your Protein Structure**:
        * Look at **Section 1** in the left sidebar.
@@ -187,9 +187,9 @@ with main_tab_help:
 
     4. **Examine Tabular Analysis & Download CSVs**:
        * Click through the tabs below the viewer to study the results:
-         * **🧬 Unique Interface Residues**: Lists unique interface residues and chemical grouping charts.
-         * **🔗 Residue-Residue Pairs**: Lists closest atom pairings with contact distances.
-         * **🔍 Detailed Atom-Atom Contacts**: Explores contacts on an individual atomic coordinate level.
+         * **  Unique Interface Residues**: Lists unique interface residues and chemical grouping charts.
+         * **  Residue-Residue Pairs**: Lists closest atom pairings with contact distances.
+         * **  Detailed Atom-Atom Contacts**: Explores contacts on an individual atomic coordinate level.
        * Click the **"Download CSV"** buttons inside each tab to download that specific spreadsheet.
 
     5. **Export Your Report**:
@@ -197,7 +197,7 @@ with main_tab_help:
        * Click **Download PDF Report** to generate a formatted document complete with your metrics, chemical charts, distance histogram, and a contact table.
     """)
 
-    st.markdown("#### 🧬 Understanding the Metrics")
+    st.markdown("####   Understanding the Metrics")
     st.markdown("""
     * **Unique Interface Residues**:
       * *What it is*: The absolute count of distinct residues participating in contacts across both chains.
@@ -210,11 +210,28 @@ with main_tab_help:
       * *Why it matters*: This metric describes the physical intensity or packing density of the interface. A high count of atomic contacts between a residue pair usually implies tightly nested packing or complex hydrogen bonding networks.
     """)
 
-    st.markdown("#### 📏 Distance Cut-off Reference")
+    st.markdown("#### │ Distance Cut-off Reference")
     st.markdown("""
     * **4.0 Å (Close Contacts)**: Ideal for highlighting specific high-affinity interactions such as hydrogen bonds, salt bridges, and closely-packed hydrophobic interactions.
     * **5.0 Å (Standard Contact Definition)**: The classical structural biology default. Captures both specific bonds and secondary van der Waals interactions across the binding interface.
     * **6.0 Å (Broader Interfaces)**: Useful for identifying flanking, solvent-accessible residues that define the broader hydration shell or structural pocket of the interface.
+    """)
+
+# Main Tab 3: About Us
+with main_tab_about:
+    st.markdown("### ℹ  Bioinformatics Programming Laboratory")
+    st.markdown("""
+    **Arnold Emerson Isaac**  
+    *Corresponding Author / Principal Investigator*  
+    
+    **Department/Institution:**  
+    Bioinformatics Programming Laboratory, Department of Bioscience,  
+    School of Bio Sciences and Technology,  
+    Vellore Institute of Technology, Vellore, India  
+
+    **Contact Details & Identifiers:**  
+    * **Email:** [iarnoldemerson@vit.ac.in](mailto:iarnoldemerson@vit.ac.in)  
+    * **ORCID ID:** [0000-0003-4212-0927](https://orcid.org/0000-0003-4212-0927)
     """)
 
 # Main Tab 1: Primary Analysis Section
@@ -264,7 +281,7 @@ with main_tab_analysis:
                         continue
                     for res_b in ch_b_obj.get_residues():
                         if res_b.id[0] != " ":
-                            continue
+                        continue
 
                         min_dist_for_pair = float("inf")
                         closest_atoms = (None, None)
@@ -370,7 +387,7 @@ with main_tab_analysis:
                     chain_b_color = color_choices[chain_b_color_name]
 
                 with col_visualizer:
-                    st.subheader(f"🗾 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
+                    st.subheader(f"圂 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
                     st.write("Interactive 3D representation showing contacting residues linked together.")
 
                     if pdb_raw_data:
@@ -422,7 +439,7 @@ with main_tab_analysis:
                                     font-weight: 600;
                                     cursor: pointer;
                                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                ">🔄 Reset 3D View</button>
+                                ">↖ Reset 3D View</button>
                                 <button id="download_png_btn" style="
                                     background-color: #2563EB;
                                     color: white;
@@ -432,7 +449,7 @@ with main_tab_analysis:
                                     font-weight: 600;
                                     cursor: pointer;
                                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                ">📸 Save 3D View as PNG Image</button>
+                                ">│ Save 3D View as PNG Image</button>
                             </div>
                             <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
                             <script>
@@ -498,9 +515,9 @@ with main_tab_analysis:
                 if not df_pairs.empty:
                     # Table data tabs (excluding Help Guide as it has been moved to top navigation)
                     tab1, tab2, tab3 = st.tabs([
-                        "🧬 Unique Interface Residues & Property Analysis",
-                        "🔗 Residue-Residue Pairs",
-                        "🔍 Detailed Atom-Atom Contacts"
+                        "  Unique Interface Residues & Property Analysis",
+                        "  Residue-Residue Pairs",
+                        "  Detailed Atom-Atom Contacts"
                     ])
 
                     with tab1:
@@ -576,7 +593,7 @@ with main_tab_analysis:
 
                     # PDF Generation Export Section
                     st.markdown("---")
-                    st.subheader("📥 Export Report as PDF")
+                    st.subheader("━ Export Report as PDF")
                     st.write("Generate a detailed, formatted PDF summary containing structural metrics, amino acid category breakdowns, the contact distance plot, and the contact residue table.")
 
                     pdf_buffer = io.BytesIO()
@@ -683,7 +700,7 @@ with main_tab_analysis:
                         res_b_str = f"{row['Residue B Name']}{row['Residue B ID']}"
                         try:
                             dist_val = float(row["Minimum Distance (Å)"])
-                            dist_formatted = f"{dist_val:.3f}"
+                            dist_formatted = f" {dist_val:.3f}"
                         except:
                             dist_formatted = str(row["Minimum Distance (Å)"])
 
@@ -716,10 +733,10 @@ with main_tab_analysis:
                     doc.build(story)
                     pdf_data = pdf_buffer.getvalue()
                     st.download_button(
-                        label="📥 Download PDF Report",
+                        label="━ Download PDF Report",
                         data=pdf_data,
                         file_name=f"protein_contact_report_{pdb_id}_{chain_a}_{chain_b}.pdf",
                         mime="application/pdf"
                     )
     else:
-        st.info("👈 Please load a structure from the sidebar to begin.")
+        st.info("“ Please load a structure from the sidebar to begin.")
