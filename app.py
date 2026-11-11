@@ -138,7 +138,8 @@ pdb_raw_data = None
 pdb_id = ""
 
 if input_method == "Fetch from PDB (RCSB)":
-    pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "6Q9O").strip()
+    # Set default text input to empty so it does not auto-run until user enters a PDB ID
+    pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "").strip()
     if pdb_id:
         try:
             pdbl = PDBList()
