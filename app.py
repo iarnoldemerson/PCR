@@ -1,4 +1,4 @@
-
+%%writefile app.py
 
 import streamlit as st
 import pandas as pd
@@ -6,15 +6,20 @@ import numpy as np
 from Bio.PDB import PDBParser, PDBList
 import io
 import os
+import base64
 import streamlit.components.v1 as components
 
 # ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
+
+# Initialize Session State for holding snapshot image data
+if "snapshot_base64" not in st.session_state:
+    st.session_state["snapshot_base64"] = ""
 
 # Inject Custom CSS to highlight Titles, Tabs and Sidebar Headers
 st.markdown("""
@@ -306,7 +311,7 @@ if structure:
                 chain_b_color = color_choices[chain_b_color_name]
 
             with col_visualizer:
-                st.subheader(f"🔼 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
+                st.subheader(f"🗾 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
                 st.write("Interactive 3D representation showing contacting residues linked together.")
 
                 if pdb_raw_data:
@@ -345,6 +350,7 @@ if structure:
                             viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
                             """
 
+                        # Hidden capture mechanism to pass Base64 snapshots to Streamlit via query parameters
                         py3dmol_html = f"""
                         <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative;"></div>
                         <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
@@ -368,8 +374,8 @@ if structure:
                                 cursor: pointer;
                                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                             ">📸 Save 3D View as PNG Image</button>
-                            <button id="download_jpeg_btn" style="
-                                background-color: #10B981;
+                            <button id="bind_report_btn" style="
+                                background-color: #8B5CF6;
                                 color: white;
                                 border: none;
                                 padding: 8px 16px;
@@ -377,7 +383,7 @@ if structure:
                                 font-weight: 600;
                                 cursor: pointer;
                                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                            ">📸 Save 3D View as JPEG Image</button>
+                            ">📺 Capture Snapshot for PDF</button>
                         </div>
                         <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
                         <script>
@@ -422,20 +428,23 @@ if structure:
                                 }}
                             }});
 
-                            // Interactive canvas to image snapshot exporter (JPEG)
-                            document.getElementById('download_jpeg_btn').addEventListener('click', function() {{
+                            // Capture current view and send back to Streamlit URL query string
+                            document.getElementById('bind_report_btn').addEventListener('click', function() {{
                                 try {{
                                     var canvas = document.getElementsByTagName('canvas')[0];
                                     if (!canvas) throw new Error("Canvas element not found.");
-                                    var dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                                    var link = document.createElement('a');
-                                    link.href = dataUrl;
-                                    link.download = 'protein_interface_3d_view.jpg';
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
+                                    var dataUrl = canvas.toDataURL('image/png');
+                                    var raw_b64 = dataUrl.split(',')[1];
+
+                                    // Send image to parent streamlit app using query params
+                                    const urlParams = new URLSearchParams(window.parent.location.search);
+                                    urlParams.set('snap', raw_b64);
+                                    window.parent.history.replaceState({{}}, '', window.parent.location.pathname + '?' + urlParams.toString());
+
+                                    // Trigger a visual update event or reload to fetch latest query params
+                                    window.parent.location.reload();
                                 }} catch(err) {{
-                                    alert('Failed to generate JPEG capture: ' + err.message);
+                                    alert('Failed to capture snapshot: ' + err.message);
                                 }}
                             }});
                         </script>
@@ -446,6 +455,12 @@ if structure:
 
             # --- Inter-chain Contacts Results Table Header ---
             st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
+
+            # Retrieve the query parameters to extract snapshot image
+            query_params = st.query_params
+            if "snap" in query_params:
+                st.session_state["snapshot_base64"] = query_params["snap"]
+                st.toast("📸 3D View snapshot successfully captured! Ready to be exported inside the PDF Report.")
 
             # Display Metrics Dashboard rearranged: 1. Unique Interface Residues, 2. Residue-Residue Pairs, 3. Atom-Atom Contacts
             col1, col2, col3 = st.columns(3)
@@ -544,7 +559,7 @@ if structure:
                 pdf_buffer = io.BytesIO()
                 doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
                 styles = getSampleStyleSheet()
-                
+
                 # Define Custom Styles safely
                 title_style = ParagraphStyle(
                     'ReportTitleStyle',
@@ -571,70 +586,26 @@ if structure:
                 story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} Å", normal_style))
                 story.append(Spacer(1, 15))
 
+                # Conditional Snapshot Inclusion
+                if st.session_state["snapshot_base64"]:
+                    try:
+                        story.append(Paragraph("Active 3D Molecular Snapshot", section_style))
+                        img_data = base64.b64decode(st.session_state["snapshot_base64"])
+                        img_buffer = io.BytesIO(img_data)
+                        # Render image with ReportLab safely
+                        story.append(Image(img_buffer, width=400, height=300))
+                        story.append(Spacer(1, 15))
+                    except Exception as e:
+                        story.append(Paragraph(f"(Could not load active 3D view snapshot image: {e})", normal_style))
+                        story.append(Spacer(1, 15))
+                else:
+                    story.append(Paragraph("<i>Note: No 3D view snapshot was selected. Click 'Capture Snapshot for PDF' above to include structural graphics in this report.</i>", normal_style))
+                    story.append(Spacer(1, 15))
+
                 # Metrics Section
                 story.append(Paragraph("1. Key Interface Metrics", section_style))
                 metrics_data = [
                     ["Metric Name", "Value"],
                     ["Total Unique Interface Residues", str(total_unique_res)],
                     [f"  - Chain {chain_a} Residues", str(len(interface_residues_a))],
-                    [f"  - Chain {chain_b} Residues", str(len(interface_residues_b))],
-                    ["Residue-Residue Contact Pairs", str(len(df_pairs))],
-                    ["Atom-Atom Contacts", str(len(df_atoms))]
-                ]
-                metrics_table = Table(metrics_data, colWidths=[280, 120])
-                metrics_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1E3A8A')),
-                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                    ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-                    ('BOTTOMPADDING', (0,0), (-1,0), 6),
-                    ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#F3F4F6'), colors.white]),
-                    ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D1D5DB'))
-                ]))
-                story.append(metrics_table)
-                story.append(Spacer(1, 15))
-
-                # Residue Pairs Section
-                story.append(Paragraph("2. Contact Residue Pairs (Top 25 Pairs)", section_style))
-                pairs_sample = df_pairs.head(25)
-                if not pairs_sample.empty:
-                    # Format headers & data rows
-                    table_headers = ["Residue A", "Residue B", "Min Dist (Å)", "Closest Atoms"]
-                    table_rows = []
-                    for _, row in pairs_sample.iterrows():
-                        row_data = [
-                            f"{row['Residue A Name']}{row['Residue A ID']}",
-                            f"{row['Residue B Name']}{row['Residue B ID']}",
-                            str(row['Minimum Distance (Å)']),
-                            str(row['Closest Atoms (A-B)'])
-                        ]
-                        table_rows.append(row_data)
-                    
-                    pairs_table_data = [table_headers] + table_rows
-                    pairs_table = Table(pairs_table_data, colWidths=[100, 100, 100, 120])
-                    pairs_table.setStyle(TableStyle([
-                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2563EB')),
-                        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                        ('BOTTOMPADDING', (0,0), (-1,0), 6),
-                        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#F9FAFB'), colors.white]),
-                        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E5E7EB'))
-                    ]))
-                    story.append(pairs_table)
-                else:
-                    story.append(Paragraph("No contact pairs found to export.", normal_style))
-
-                # Build document
-                doc.build(story)
-                pdf_buffer.seek(0)
-
-                # Download PDF Button
-                st.download_button(
-                    label="📥 Download Complete PDF Report",
-                    data=pdf_buffer,
-                    file_name=f"protein_contact_report_{pdb_id}_{chain_a}_{chain_b}.pdf",
-                    mime="application/pdf"
-                )
-            else:
-                st.info(f"No contacts found between Chain {chain_a} and Chain {chain_b} within {selected_cutoff} Å.")
-else:
-    st.info("Please load a structure from the sidebar to begin analyzing contact residues.")
+                    [f
