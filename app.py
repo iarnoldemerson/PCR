@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 # ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
@@ -77,7 +77,7 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     </style>
-""", unsafe_allow_html=True)
+""", unsafe_allow_html=True) 
 
 # Display Highlighted Title
 st.markdown("<div class=\"main-title\">⚕️ Protein Contact Residue Server</div>", unsafe_allow_html=True)
@@ -154,7 +154,7 @@ if input_method == "Fetch from PDB (RCSB)":
     with st.sidebar.form(key="pdb_fetch_form"):
         pdb_input_id = st.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "").strip()
         submit_button = st.form_submit_button(label="Submit PDB ID")
-    
+
     if submit_button and pdb_input_id:
         try:
             pdbl = PDBList()
@@ -162,14 +162,14 @@ if input_method == "Fetch from PDB (RCSB)":
             with open(pdb_filename, "r") as f:
                 loaded_raw_data = f.read()
             loaded_structure = parser.get_structure(pdb_input_id, pdb_filename)
-            
+
             st.session_state.pdb_raw_data = loaded_raw_data
             st.session_state.structure = loaded_structure
             st.session_state.pdb_id = pdb_input_id
             st.sidebar.success(f"Successfully loaded structure for PDB ID: {pdb_input_id.upper()}")
         except Exception as e:
             st.sidebar.error(f"Error fetching PDB ID {pdb_input_id}: {e}")
-            
+
     pdb_raw_data = st.session_state.pdb_raw_data
     structure = st.session_state.structure
     pdb_id = st.session_state.pdb_id
@@ -201,7 +201,7 @@ with main_tab_help:
     2. **Configure Your Chains and Threshold**:
        * Once the structure is loaded, **Section 2** in the sidebar activates.
        * Pick **Chain 1** and **Chain 2** from the dropdowns.
-       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\\text{ Å}$, $5.0\\text{ Å}$, or $6.0\\text{ Å}$).
+       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\text{ Å}$, $5.0\text{ Å}$, or $6.0\text{ Å}$).
 
     3. **Interact and Filter the 3D View**:
        * The **3D Molecular View** displays cartoons of both chains, linked by yellow dashed lines at the contact coordinates.
@@ -433,7 +433,7 @@ with main_tab_analysis:
                                 viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
                                 """
 
-                            # Clean iframe component view with 'Capture Snapshot' buttons removed
+                            # High-DPI Canvas Snapshot modification embedded below
                             py3dmol_html = f"""
                             <div id=\"3dmol_canvas\" style=\"width: 100%; height: 500px; position: relative;\"></div>
                             <div style=\"margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;\">
@@ -484,20 +484,31 @@ with main_tab_analysis:
                                     viewer.render();
                                 }});
 
-                                // Interactive canvas to image snapshot exporter (PNG)
+                                // High-DPI canvas snapshot generator (publishing quality)
                                 document.getElementById('download_png_btn').addEventListener('click', function() {{
                                     try {{
-                                        var canvas = document.getElementsByTagName('canvas')[0];
-                                        if (!canvas) throw new Error(\"Canvas element not found.\");
-                                        var dataUrl = canvas.toDataURL('image/png');
+                                        var oldCanvas = document.getElementsByTagName('canvas')[0];
+                                        if (!oldCanvas) throw new Error(\"Canvas element not found.\");
+                                        
+                                        // Scale factor for high DPI/resolution export (3x resolution boost)
+                                        var scaleFactor = 3;
+                                        var tempCanvas = document.createElement('canvas');
+                                        tempCanvas.width = oldCanvas.width * scaleFactor;
+                                        tempCanvas.height = oldCanvas.height * scaleFactor;
+                                        var tempCtx = tempCanvas.getContext('2d');
+                                        
+                                        // Render and stretch high-resolution output
+                                        tempCtx.drawImage(oldCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+                                        
+                                        var dataUrl = tempCanvas.toDataURL('image/png');
                                         var link = document.createElement('a');
                                         link.href = dataUrl;
-                                        link.download = 'protein_interface_3d_view.png';
+                                        link.download = 'protein_interface_3d_view_high_dpi.png';
                                         document.body.appendChild(link);
                                         link.click();
                                         document.body.removeChild(link);
                                     }} catch(err) {{
-                                        alert('Failed to generate PNG capture: ' + err.message);
+                                        alert('Failed to generate high DPI PNG capture: ' + err.message);
                                     }}
                                 }});
                             </script>
@@ -520,7 +531,7 @@ with main_tab_analysis:
                     st.metric("Atom–Atom Contacts", len(df_atoms))
 
                 if not df_pairs.empty:
-                    # Table data tabs (excluding Help Guide as it has been moved to top navigation)
+                    # Table data tabs
                     tab1, tab2, tab3 = st.tabs([
                         "🧬 Unique Interface Residues & Property Analysis",
                         "🔗 Residue-Residue Pairs",
@@ -544,7 +555,7 @@ with main_tab_analysis:
                         df_aa_stats, df_groups, aa_counts = get_amino_acid_statistics(all_unique_res)
 
                         if df_aa_stats is not None:
-                            # Section i: Amino acid frequency distribution with side-by-side bar chart
+                            # Section i: Amino acid frequency distribution
                             st.write("**i) Amino acid frequency distribution**")
                             col_table_i, col_chart_i = st.columns(2)
                             with col_table_i:
@@ -557,12 +568,11 @@ with main_tab_analysis:
                                     mime="text/csv"
                                 )
                             with col_chart_i:
-                                # Restore Streamlit's original native, interactive bar chart
                                 st.bar_chart(aa_counts, use_container_width=True)
 
                             st.markdown("---")
 
-                            # Section ii: Group Distributions with side-by-side bar chart
+                            # Section ii: Group Distributions
                             st.write("**ii) Group Distributions**")
                             col_table_ii, col_chart_ii = st.columns(2)
                             with col_table_ii:
@@ -575,7 +585,6 @@ with main_tab_analysis:
                                     mime="text/csv"
                                 )
                             with col_chart_ii:
-                                # Restore Streamlit's original native, interactive bar chart
                                 st.bar_chart(df_groups.set_index("Category")["Count"], use_container_width=True)
                         else:
                             st.write("No residues to display properties for.")
@@ -702,7 +711,6 @@ with main_tab_analysis:
                     story.append(Paragraph("4. Residue-Residue Contact Pairs Table", section_style))
                     pairs_table_data = [["S.No", "ResA", "ResB", "Distance (Å)"]]
 
-                    # Include rows up to 100 for safety, or all if smaller
                     max_rows_to_render = min(100, len(df_pairs))
                     for idx, row in df_pairs.head(max_rows_to_render).iterrows():
                         res_a_str = f"{row['Residue A Name']}{row['Residue A ID']}"
@@ -720,7 +728,6 @@ with main_tab_analysis:
                             dist_formatted
                         ])
 
-                    # Dynamic Column Width adjustment for report flow
                     t_pairs = Table(pairs_table_data, colWidths=[60, 110, 110, 120])
                     t_pairs.setStyle(TableStyle([
                         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F3F4F6')),
