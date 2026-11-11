@@ -137,9 +137,23 @@ structure = None
 pdb_raw_data = None
 pdb_id = ""
 
+# Initialize Streamlit session state for selected structure details
+if "pdb_id_to_load" not in st.session_state:
+    st.session_state.pdb_id_to_load = ""
+
 if input_method == "Fetch from PDB (RCSB)":
-    pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "6Q9O").strip()
-    if pdb_id:
+    # Provide demo load button
+    if st.sidebar.button("⚡ Load Demo Structure (6Q9O)"):
+        st.session_state.pdb_id_to_load = "6Q9O"
+
+    pdb_input = st.sidebar.text_input(
+        "Enter 4-letter PDB ID:",
+        value=st.session_state.pdb_id_to_load,
+        key="pdb_text_field"
+    ).strip()
+
+    if pdb_input:
+        pdb_id = pdb_input
         try:
             pdbl = PDBList()
             pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=".", file_format="pdb")
@@ -172,7 +186,7 @@ with main_tab_help:
     st.markdown("""
     1. **Load Your Protein Structure**:
        * Look at **Section 1** in the left sidebar.
-       * Select either **Fetch from PDB (RCSB)** (type any valid 4-character PDB ID, such as `6Q9O`) or choose **Upload PDB File** to provide a local `.pdb` file directly from your computer.
+       * Click **⚡ Load Demo Structure (6Q9O)** to try the application immediately, or enter any valid 4-character PDB ID into the text input, or choose **Upload PDB File** to provide a local `.pdb` file directly from your computer.
 
     2. **Configure Your Chains and Threshold**:
        * Once the structure is loaded, **Section 2** in the sidebar activates.
