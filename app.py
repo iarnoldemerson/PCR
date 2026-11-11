@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 # ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
@@ -60,7 +60,7 @@ st.markdown("""
         background-color: #3B82F6 !important;
         color: #FFFFFF !important;
         border: 1px solid #2563EB !important;
-        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); 
     }
 
     /* Styled Custom Headers for Sidebar & Main Panel Widgets */
@@ -145,12 +145,17 @@ if input_method == "Fetch from PDB (RCSB)":
     # Provide demo load button
     if st.sidebar.button("⚡ Load Demo Structure (6Q9O)"):
         st.session_state.pdb_id_to_load = "6Q9O"
+        st.rerun()
 
     pdb_input = st.sidebar.text_input(
         "Enter 4-letter PDB ID (e.g., 6Q9O):",
         value=st.session_state.pdb_id_to_load,
         key="pdb_text_field"
     ).strip()
+
+    # Keep session state in sync with text field input manually
+    if pdb_input != st.session_state.pdb_id_to_load:
+        st.session_state.pdb_id_to_load = pdb_input
 
     if pdb_input:
         pdb_id = pdb_input
@@ -191,12 +196,12 @@ with main_tab_help:
     2. **Configure Your Chains and Threshold**:
        * Once the structure is loaded, **Section 2** in the sidebar activates.
        * Pick **Chain 1** and **Chain 2** from the dropdowns.
-       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\text{ Å}$, $5.0\text{ Å}$, or $6.0\text{ Å}$).
+       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\\text{ Å}$, $5.0\\text{ Å}$, or $6.0\\text{ Å}$).
 
     3. **Interact and Filter the 3D View**:
        * The **3D Molecular View** displays cartoons of both chains, linked by yellow dashed lines at the contact coordinates.
        * Use the right-hand **3D Filter Display** panel to turn labels on/off, change the viewer background, and customize cartoon chain colors.
-       * To focus on a subset of residues, select them in the **"Select contact residue pairs to display"** multi-select box.
+       * To focus on a subset of residues, select them in the **\"Select contact residue pairs to display\"** multi-select box.
        * Click **Reset 3D View** to restore the default camera, or **Save 3D View as PNG Image** to save a snapshot.
 
     4. **Examine Tabular Analysis & Download CSVs**:
@@ -204,7 +209,7 @@ with main_tab_help:
          * **🧬 Unique Interface Residues**: Lists unique interface residues and chemical grouping charts.
          * **🔗 Residue-Residue Pairs**: Lists closest atom pairings with contact distances.
          * **🔍 Detailed Atom-Atom Contacts**: Explores contacts on an individual atomic coordinate level.
-       * Click the **"Download CSV"** buttons inside each tab to download that specific spreadsheet.
+       * Click the **\"Download CSV\"** buttons inside each tab to download that specific spreadsheet.
 
     5. **Export Your Report**:
        * Scroll to the bottom of the page to find the **Export Report as PDF** section.
@@ -425,9 +430,9 @@ with main_tab_analysis:
 
                             # Clean iframe component view with 'Capture Snapshot' buttons removed
                             py3dmol_html = f"""
-                            <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative;"></div>
-                            <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
-                                <button id="reset_view_btn" style="
+                            <div id=\"3dmol_canvas\" style=\"width: 100%; height: 500px; position: relative;\"></div>
+                            <div style=\"margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;\">
+                                <button id=\"reset_view_btn\" style=\"
                                     background-color: #6B7280;
                                     color: white;
                                     border: none;
@@ -436,8 +441,8 @@ with main_tab_analysis:
                                     font-weight: 600;
                                     cursor: pointer;
                                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                ">🔄 Reset 3D View</button>
-                                <button id="download_png_btn" style="
+                                \">🔄 Reset 3D View</button>
+                                <button id=\"download_png_btn\" style=\"
                                     background-color: #2563EB;
                                     color: white;
                                     border: none;
@@ -446,9 +451,9 @@ with main_tab_analysis:
                                     font-weight: 600;
                                     cursor: pointer;
                                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                ">📸 Save 3D View as PNG Image</button>
+                                \">📸 Save 3D View as PNG Image</button>
                             </div>
-                            <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
+                            <script src=\"https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js\"></script>
                             <script>
                                 var element = document.getElementById('3dmol_canvas');
                                 var config = {{ backgroundColor: '{bg_color_option}' }};
@@ -478,7 +483,7 @@ with main_tab_analysis:
                                 document.getElementById('download_png_btn').addEventListener('click', function() {{
                                     try {{
                                         var canvas = document.getElementsByTagName('canvas')[0];
-                                        if (!canvas) throw new Error("Canvas element not found.");
+                                        if (!canvas) throw new Error(\"Canvas element not found.\");
                                         var dataUrl = canvas.toDataURL('image/png');
                                         var link = document.createElement('a');
                                         link.href = dataUrl;
@@ -545,7 +550,7 @@ with main_tab_analysis:
                                     data=csv_aa_stats,
                                     file_name=f"amino_acid_frequency_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                                     mime="text/csv"
-                                )
+                        )
                             with col_chart_i:
                                 st.bar_chart(aa_counts, use_container_width=True)
 
