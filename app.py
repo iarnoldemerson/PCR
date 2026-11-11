@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -17,7 +18,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
-# Inject Custom CSS to highlight Titles, Tabs and Sidebar Headers
+# Inject Custom CSS to highlight Titles, Tabs, Sidebar Headers and Justify Paragraphs
 try:
     st.markdown("""
         <style>
@@ -32,6 +33,14 @@ try:
             background: linear-gradient(90deg, #EFF6FF, #DBEAFE, #EFF6FF);
             border-radius: 12px;
             border-left: 8px solid #3B82F6;
+        }
+
+        /* Justified text styling */
+        .justified-para {
+            text-align: justify !important;
+            text-justify: inter-word !important;
+            line-height: 1.6 !important;
+            margin-bottom: 15px;
         }
 
         /* Highlight and style navigation Tabs */
@@ -84,10 +93,10 @@ except Exception:
 # Display Highlighted Title
 st.markdown("<div class=\"main-title\">⚕️ Protein Contact Residue Server</div>", unsafe_allow_html=True)
 
-# Introductory description paragraph describing the application
-st.markdown("""
-**The Protein Contact Residue Server** is a state-of-the-art interactive web tool designed for structural biologists and biochemists to perform precise, distance-based calculations of physical contacts across macromolecular binding interfaces. By parsing coordinate files directly from the Protein Data Bank (RCSB PDB) or handling local custom files, this program identifies inter-chain residue networks, quantifies atomic coordinate intersections, and provides operational physicochemical classification breakdowns. The application features a dynamic 3D molecular viewer and generates professional publication-ready summaries alongside fully formatted PDF and CSV records.
-""")
+# Introductory description paragraph describing the application using justified CSS layout styling
+st.markdown("""<div class="justified-para">
+<strong>The Protein Contact Residue Server</strong> is a state-of-the-art interactive web tool designed for structural biologists and biochemists to perform precise, distance-based calculations of physical contacts across macromolecular binding interfaces. By parsing coordinate files directly from the Protein Data Bank (RCSB PDB) or handling local custom files, this program identifies inter-chain residue networks, quantifies atomic coordinate intersections, and provides operational physicochemical classification breakdowns. The application features a dynamic 3D molecular viewer and generates professional publication-ready summaries alongside fully formatted PDF and CSV records.
+</div>""", unsafe_allow_html=True)
 
 # Display attached user image
 image_path = "/content/Screenshot 2026-11-11 at 12.03.52 PM.png"
@@ -495,17 +504,17 @@ with main_tab_analysis:
                                     try {{
                                         var oldCanvas = document.getElementsByTagName('canvas')[0];
                                         if (!oldCanvas) throw new Error(\"Canvas element not found.\");
-                                        
+
                                         // Scale factor for high DPI/resolution export (3x resolution boost)
                                         var scaleFactor = 3;
                                         var tempCanvas = document.createElement('canvas');
                                         tempCanvas.width = oldCanvas.width * scaleFactor;
                                         tempCanvas.height = oldCanvas.height * scaleFactor;
                                         var tempCtx = tempCanvas.getContext('2d');
-                                        
+
                                         // Render and stretch high-resolution output
                                         tempCtx.drawImage(oldCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
-                                        
+
                                         var dataUrl = tempCanvas.toDataURL('image/png');
                                         var link = document.createElement('a');
                                         link.href = dataUrl;
