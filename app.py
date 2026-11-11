@@ -1,6 +1,5 @@
 
 
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -191,7 +190,7 @@ with main_tab_help:
     2. **Configure Your Chains and Threshold**:
        * Once the structure is loaded, **Section 2** in the sidebar activates.
        * Pick **Chain 1** and **Chain 2** from the dropdowns.
-       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\\text{ \u00C5}$, $5.0\\text{ \u00C5}$, or $6.0\\text{ \u00C5}$).
+       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\\text{ \\u00C5}$, $5.0\\text{ \\u00C5}$, or $6.0\\text{ \\u00C5}$).
 
     3. **Interact and Filter the 3D View**:
        * The **3D Molecular View** displays cartoons of both chains, linked by yellow dashed lines at the contact coordinates.
@@ -226,9 +225,9 @@ with main_tab_help:
 
     st.markdown("#### │ Distance Cut-off Reference")
     st.markdown("""
-    * **4.0 \u00C5 (Close Contacts)**: Ideal for highlighting specific high-affinity interactions such as hydrogen bonds, salt bridges, and closely-packed hydrophobic interactions.
-    * **5.0 \u00C5 (Standard Contact Definition)**: The classical structural biology default. Captures both specific bonds and secondary van der Waals interactions across the binding interface.
-    * **6.0 \u00C5 (Broader Interfaces)**: Useful for identifying flanking, solvent-accessible residues that define the broader hydration shell or structural pocket of the interface.
+    * **4.0 \\u00C5 (Close Contacts)**: Ideal for highlighting specific high-affinity interactions such as hydrogen bonds, salt bridges, and closely-packed hydrophobic interactions.
+    * **5.0 \\u00C5 (Standard Contact Definition)**: The classical structural biology default. Captures both specific bonds and secondary van der Waals interactions across the binding interface.
+    * **6.0 \\u00C5 (Broader Interfaces)**: Useful for identifying flanking, solvent-accessible residues that define the broader hydration shell or structural pocket of the interface.
     """)
 
 # Main Tab 3: About Us
@@ -265,9 +264,9 @@ with main_tab_analysis:
             chain_b = None
 
         cutoff_options = {
-            4.0: "4 \u00C5 (Identify close contacts)",
-            5.0: "5 \u00C5 (Primary contact definition)",
-            6.0: "6 \u00C5 (Identify broader interfaces)"
+            4.0: "4 \\u00C5 (Identify close contacts)",
+            5.0: "5 \\u00C5 (Primary contact definition)",
+            6.0: "6 \\u00C5 (Identify broader interfaces)"
         }
 
         selected_cutoff = st.sidebar.selectbox(
@@ -311,7 +310,7 @@ with main_tab_analysis:
                                         "Atom A": atom_a.get_name(),
                                         "Residue B": f"{res_b.get_resname()}{res_b.id[1]}",
                                         "Atom B": atom_b.get_name(),
-                                        "Distance (\u00C5)": round(dist, 3)
+                                        "Distance (\\u00C5)": round(dist, 3)
                                     })
                                     if dist < min_dist_for_pair:
                                         min_dist_for_pair = dist
@@ -327,7 +326,7 @@ with main_tab_analysis:
                                 "Residue A ID": res_a.id[1],
                                 "Residue B Name": res_b.get_resname(),
                                 "Residue B ID": res_b.id[1],
-                                "Minimum Distance (\u00C5)": round(min_dist_for_pair, 3),
+                                "Minimum Distance (\\u00C5)": round(min_dist_for_pair, 3),
                                 "Closest Atoms (A-B)": f"{(closest_atoms[0] or '')}-{(closest_atoms[1] or '')}"
                             }
                             if visual_atom_pair is not None:
@@ -401,7 +400,7 @@ with main_tab_analysis:
                     chain_b_color = color_choices[chain_b_color_name]
 
                 with col_visualizer:
-                    st.subheader(f"圂 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
+                    st.subheader(f"🗺️ 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
                     st.write("Interactive 3D representation showing contacting residues linked together.")
 
                     if pdb_raw_data:
@@ -514,7 +513,7 @@ with main_tab_analysis:
                             st.error(f"Could not render 3D structural model: {e}")
 
                 # --- Inter-chain Contacts Results Table Header ---
-                st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} \u00C5")
+                st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} \\u00C5")
 
                 # Display Metrics Dashboard
                 col1, col2, col3 = st.columns(3)
@@ -637,7 +636,7 @@ with main_tab_analysis:
                     story.append(Paragraph("Protein Contact Residue Server Analysis Report", title_style))
                     story.append(Paragraph(f"<b>Structure Target:</b> {pdb_id.upper()}", normal_style))
                     story.append(Paragraph(f"<b>Interface Chains:</b> Chain {chain_a} & Chain {chain_b}", normal_style))
-                    story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} \u00C5", normal_style))
+                    story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} \\u00C5", normal_style))
                     story.append(Spacer(1, 15))
 
                     # Metrics Section
@@ -645,8 +644,8 @@ with main_tab_analysis:
                     metrics_table_data = [
                         ["Metric Name", "Value"],
                         ["Total Unique Interface Residues", str(total_unique_res)],
-                        [f"- Chain {chain_a} Residues", str(len(interface_residues_a))],
-                        [f"- Chain {chain_b} Residues", str(len(interface_residues_b))],
+                        ["- Chain {chain_a} Residues", str(len(interface_residues_a))],
+                        ["- Chain {chain_b} Residues", str(len(interface_residues_b))],
                         ["Residue-Residue Pairs", str(len(df_pairs))],
                         ["Atom-Atom Contacts", str(len(df_atoms))]
                     ]
@@ -680,14 +679,14 @@ with main_tab_analysis:
                         story.append(Spacer(1, 15))
 
                     # Distance Distribution Plot Section
-                    if not df_pairs.empty and "Minimum Distance (\u00C5)" in df_pairs.columns:
+                    if not df_pairs.empty and "Minimum Distance (\\u00C5)" in df_pairs.columns:
                         story.append(Paragraph("3. Interface Contact Distance Summary Plot", section_style))
                         try:
                             fig, ax = plt.subplots(figsize=(6, 3))
-                            distances = df_pairs["Minimum Distance (\u00C5)"].dropna().astype(float)
+                            distances = df_pairs["Minimum Distance (\\u00C5)"].dropna().astype(float)
                             ax.hist(distances, bins=10, color="#3B82F6", edgecolor="black", alpha=0.8)
                             ax.set_title("Distribution of Minimum Residue-Residue Distances", fontsize=10, fontweight="bold", color="#1E3A8A")
-                            ax.set_xlabel("Distance (\u00C5)", fontsize=8)
+                            ax.set_xlabel("Distance (\\u00C5)", fontsize=8)
                             ax.set_ylabel("Frequency", fontsize=8)
                             ax.grid(True, linestyle="--", alpha=0.5)
                             plt.tight_layout()
@@ -705,7 +704,7 @@ with main_tab_analysis:
 
                     # 4. Residue-Residue Contacts Table Section inside PDF
                     story.append(Paragraph("4. Residue-Residue Contact Pairs Table", section_style))
-                    pairs_table_data = [["S.No", "ResA", "ResB", "Distance (\u00C5)"]]
+                    pairs_table_data = [["S.No", "ResA", "ResB", "Distance (\\u00C5)"]]
 
                     # Include rows up to 100 for safety, or all if smaller
                     max_rows_to_render = min(100, len(df_pairs))
@@ -713,10 +712,10 @@ with main_tab_analysis:
                         res_a_str = f"{row['Residue A Name']}{row['Residue A ID']}"
                         res_b_str = f"{row['Residue B Name']}{row['Residue B ID']}"
                         try:
-                            dist_val = float(row["Minimum Distance (\u00C5)"])
+                            dist_val = float(row["Minimum Distance (\\u00C5)"])
                             dist_formatted = f" {dist_val:.3f}"
                         except:
-                            dist_formatted = str(row["Minimum Distance (\u00C5)"])
+                            dist_formatted = str(row["Minimum Distance (\\u00C5)"])
 
                         pairs_table_data.append([
                             str(idx),
