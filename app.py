@@ -372,6 +372,7 @@ with main_tab_analysis:
                 with col_filters:
                     st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
                     enable_labels = st.checkbox("Enable Residue Labels", value=True)
+                    show_molecular_surface = st.checkbox("Transparent molecular surface", value=False)
 
                     if contact_links_visualization:
                         available_pairs = [link["pair_label"] for link in contact_links_visualization]
@@ -420,6 +421,7 @@ with main_tab_analysis:
                             cylinder_lines_js = ""
                             labels_js = ""
                             sidechains_js = ""
+                            vdw_surface_js = ""
 
                             for link in filtered_links:
                                 ca = link["coord_a"]
@@ -447,6 +449,13 @@ with main_tab_analysis:
                                 viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: 'cyan'}}}});
                                 viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
                                 """
+
+                                # Transparent Molecular Surface calculations inside JS
+                                if show_molecular_surface:
+                                    vdw_surface_js += f"""
+                                    viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: 0.4, color: '{chain_a_color}'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
+                                    viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: 0.4, color: '{chain_b_color}'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
+                                    """
 
                             # High-DPI Canvas Snapshot modification embedded below
                             py3dmol_html = f"""
@@ -490,6 +499,7 @@ with main_tab_analysis:
                                 {cylinder_lines_js}
                                 {sidechains_js}
                                 {labels_js}
+                                {vdw_surface_js}
                                 viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
                                 viewer.render();
 
