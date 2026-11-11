@@ -108,7 +108,6 @@ def get_amino_acid_statistics(all_unique_res):
     res_names_only = [res[:3].upper() for res in all_unique_res if len(res) >= 3]
     tot_unique = len(res_names_only)
 
-
     if tot_unique == 0:
         return None, None, None
 
@@ -143,18 +142,37 @@ structure = None
 pdb_raw_data = None
 pdb_id = ""
 
+# Initialize session state to persist loaded structure data when switching params
+if "pdb_raw_data" not in st.session_state:
+    st.session_state.pdb_raw_data = None
+if "structure" not in st.session_state:
+    st.session_state.structure = None
+if "pdb_id" not in st.session_state:
+    st.session_state.pdb_id = ""
+
 if input_method == "Fetch from PDB (RCSB)":
-    pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "").strip()
-    if pdb_id:
+    with st.sidebar.form(key="pdb_fetch_form"):
+        pdb_input_id = st.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "").strip()
+        submit_button = st.form_submit_button(label="Submit PDB ID")
+    
+    if submit_button and pdb_input_id:
         try:
             pdbl = PDBList()
-            pdb_filename = pdbl.retrieve_pdb_file(pdb_id, pdir=".", file_format="pdb")
+            pdb_filename = pdbl.retrieve_pdb_file(pdb_input_id, pdir=".", file_format="pdb")
             with open(pdb_filename, "r") as f:
-                pdb_raw_data = f.read()
-            structure = parser.get_structure(pdb_id, pdb_filename)
-            st.sidebar.success(f"Successfully loaded structure for PDB ID: {pdb_id.upper()}")
+                loaded_raw_data = f.read()
+            loaded_structure = parser.get_structure(pdb_input_id, pdb_filename)
+            
+            st.session_state.pdb_raw_data = loaded_raw_data
+            st.session_state.structure = loaded_structure
+            st.session_state.pdb_id = pdb_input_id
+            st.sidebar.success(f"Successfully loaded structure for PDB ID: {pdb_input_id.upper()}")
         except Exception as e:
-            st.sidebar.error(f"Error fetching PDB ID {pdb_id}: {e}")
+            st.sidebar.error(f"Error fetching PDB ID {pdb_input_id}: {e}")
+            
+    pdb_raw_data = st.session_state.pdb_raw_data
+    structure = st.session_state.structure
+    pdb_id = st.session_state.pdb_id
 
 else:
     uploaded_file = st.sidebar.file_uploader("Upload a .pdb file:", type=["pdb"])
