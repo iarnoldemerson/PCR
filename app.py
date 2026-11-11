@@ -1,5 +1,4 @@
 
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -79,7 +78,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Display Highlighted Title
-st.markdown('<div class="main-title">⚕️ Protein Contact Residue Server</div>', unsafe_allow_html=True)
+st.markdown("<div class=\"main-title\">⚕️ Protein Contact Residue Server</div>", unsafe_allow_html=True)
 st.write("Determine contact residues between two protein chains using customizable distance thresholds.")
 
 # Operational chemical classifications of amino acids
@@ -122,7 +121,7 @@ def get_amino_acid_statistics(all_unique_res):
     return df_aa_stats, df_groups, aa_counts
 
 # Sidebar with styled headers
-st.sidebar.markdown('<div class="sidebar-header-highlight">1. Load PDB Structure</div>', unsafe_allow_html=True)
+st.sidebar.markdown("<div class=\"sidebar-header-highlight\">1. Load PDB Structure</div>", unsafe_allow_html=True)
 input_method = st.sidebar.radio("Choose Source:", ("Fetch from PDB (RCSB)", "Upload PDB File"))
 
 parser = PDBParser(QUIET=True)
@@ -161,7 +160,7 @@ if structure:
     selected_model = models[0]
     all_chains = [chain.id for chain in selected_model.get_chains()]
 
-    st.sidebar.markdown('<div class="sidebar-header-highlight">2. Parameters</div>', unsafe_allow_html=True)
+    st.sidebar.markdown("<div class=\"sidebar-header-highlight\">2. Parameters</div>", unsafe_allow_html=True)
     if len(all_chains) >= 2:
         chain_a = st.sidebar.selectbox("Select Chain 1:", all_chains, index=0)
         chain_b = st.sidebar.selectbox("Select Chain 2:", all_chains, index=min(1, len(all_chains)-1))
@@ -287,10 +286,10 @@ if structure:
                     st.info("No contacts available to filter.")
                     filtered_links = []
 
-                # Added option to customize the visualizer background color
+                # Customize the visualizer background color
                 bg_color_option = st.selectbox("Viewer Background Color:", options=["black", "white", "gray"], format_func=lambda x: x.capitalize(), index=0)
 
-                # Added option to customize chain cartoon colors
+                # Customize chain cartoon colors
                 color_choices = {
                     "Blue": "#3B82F6",
                     "Red": "#EF4444",
@@ -585,24 +584,30 @@ if structure:
                     story.append(t_groups)
                     story.append(Spacer(1, 15))
 
-                # 3. Residue-Residue Contacts Table Section inside PDF
+                # 3. Residue-Residue Contacts Table Section inside PDF (S.No, ResA, ResB, Distance)
                 story.append(Paragraph("3. Residue-Residue Contact Pairs Table", section_style))
-                pairs_table_data = [["Index", f"Res {chain_a}", f"ID {chain_a}", f"Res {chain_b}", f"ID {chain_b}", "Dist (Å)"]]
+                pairs_table_data = [["S.No", "ResA", "ResB", "Distance (Å)"]]
                 
                 # Include rows up to 100 for safety, or all if smaller
                 max_rows_to_render = min(100, len(df_pairs))
                 for idx, row in df_pairs.head(max_rows_to_render).iterrows():
+                    res_a_str = f"{row['Residue A Name']}{row['Residue A ID']}"
+                    res_b_str = f"{row['Residue B Name']}{row['Residue B ID']}"
+                    try:
+                        dist_val = float(row["Minimum Distance (Å)"])
+                        dist_formatted = f"{dist_val:.3f}"
+                    except:
+                        dist_formatted = str(row["Minimum Distance (Å)"])
+                    
                     pairs_table_data.append([
                         str(idx),
-                        str(row["Residue A Name"]),
-                        str(row["Residue A ID"]),
-                        str(row["Residue B Name"]),
-                        str(row["Residue B ID"]),
-                        str(row["Minimum Distance (Å)"])
+                        res_a_str,
+                        res_b_str,
+                        dist_formatted
                     ])
                 
                 # Dynamic Column Width adjustment for report flow
-                t_pairs = Table(pairs_table_data, colWidths=[50, 70, 70, 70, 70, 70])
+                t_pairs = Table(pairs_table_data, colWidths=[60, 110, 110, 120])
                 t_pairs.setStyle(TableStyle([
                     ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F3F4F6')),
                     ('TEXTCOLOR', (0,0), (-1,0), colors.black),
@@ -610,8 +615,8 @@ if structure:
                     ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
                     ('FONTSIZE', (0,0), (-1,-1), 9),
                     ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB')),
-                    ('TOPPADDING', (0,0), (-1,-1), 4),
-                    ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                    ('TOPPADDING', (0,0), (-1,-1), 5),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 5),
                 ]))
                 story.append(t_pairs)
                 
