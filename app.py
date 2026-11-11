@@ -434,11 +434,12 @@ if structure:
                 st.metric("Atom–Atom Contacts", len(df_atoms))
 
             if not df_pairs.empty:
-                # Reordered tabs: 1. Unique Interface, 2. Residue-Residue Pairs, 3. Detailed Atom-Atom
-                tab1, tab2, tab3 = st.tabs([
+                # Reordered tabs: 1. Unique Interface, 2. Residue-Residue Pairs, 3. Detailed Atom-Atom, 4. Help Guide
+                tab1, tab2, tab3, tab4 = st.tabs([
                     "🧬 Unique Interface Residues & Property Analysis",
                     "🔗 Residue-Residue Pairs",
-                    "🔍 Detailed Atom-Atom Contacts"
+                    "🔍 Detailed Atom-Atom Contacts",
+                    "❓ Help Guide"
                 ])
 
                 with tab1:
@@ -511,6 +512,30 @@ if structure:
                         file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                         mime="text/csv"
                     )
+
+                with tab4:
+                    st.markdown("### 📘 Structural Interface Analysis Guide")
+                    st.write("Welcome to the reference guide for interpreting your inter-chain contact data. Below, we explain the core scientific distinctions between the physical measurements calculated by this server.")
+                    
+                    st.markdown("#### 1. Core Structural Metrics")
+                    st.markdown("""
+                    * **Unique Interface Residues**:
+                      * *What it is*: The absolute count of distinct residues participating in contacts across both chains.
+                      * *Why it matters*: If Residue `ALA12` on Chain A is close enough to interact with both `VAL40` and `LEU42` on Chain B, `ALA12` is only counted **once** as a unique interface residue. This metric is ideal for estimating the overall surface area of the active interface region.
+                    * **Residue-Residue Pairs**:
+                      * *What it is*: Unique combinations of contacting residue pairs (e.g., `ALA12` - `VAL40`).
+                      * *Why it matters*: Unlike the atom count, this is a sequence-level metric. If multiple atoms in `ALA12` interact with multiple atoms in `VAL40`, it still yields exactly one residue pair contact.
+                    * **Atom-Atom Contacts**:
+                      * *What it is*: The raw physical contacts occurring at the atomic level (e.g., side-chain carbons or backbone oxygens/nitrogens within the cut-off boundary).
+                      * *Why it matters*: This metric describes the physical intensity or packing density of the interface. A high count of atomic contacts between a residue pair usually implies tightly nested packing or complex hydrogen bonding networks.
+                    """)
+
+                    st.markdown("#### 2. Distance Cut-off Quick Reference")
+                    st.markdown("""
+                    * **4.0 Å (Close Contacts)**: Ideal for highlighting specific high-affinity interactions such as hydrogen bonds, salt bridges, and closely-packed hydrophobic interactions.
+                    * **5.0 Å (Standard Contact Definition)**: The classical structural biology default. Captures both specific bonds and secondary van der Waals interactions across the binding interface.
+                    * **6.0 Å (Broader Interfaces)**: Useful for identifying flanking, solvent-accessible residues that define the broader hydration shell or structural pocket of the interface.
+                    """)
 
                 # PDF Generation Export Section
                 st.markdown("---")
