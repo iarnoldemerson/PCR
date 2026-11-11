@@ -82,6 +82,11 @@ st.markdown("""
 st.markdown("<div class=\"main-title\">⚕️ Protein Contact Residue Server</div>", unsafe_allow_html=True)
 st.write("Determine contact residues between two protein chains using customizable distance thresholds.")
 
+# Display attached user image
+image_path = "/content/Screenshot 2026-11-11 at 12.03.52 PM.png"
+if os.path.exists(image_path):
+    st.image(image_path, use_container_width=True, caption="Protein Contact Residue Server Overview")
+
 # Create Main Tabs at the top of the page
 main_tab_analysis, main_tab_help = st.tabs([
     "🔬 Interface Analysis & 3D Viewer",
@@ -137,7 +142,6 @@ pdb_raw_data = None
 pdb_id = ""
 
 if input_method == "Fetch from PDB (RCSB)":
-    # Kept empty default value so it doesn't auto-fetch until user inputs a PDB ID
     pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "").strip()
     if pdb_id:
         try:
@@ -177,12 +181,12 @@ with main_tab_help:
     2. **Configure Your Chains and Threshold**:
        * Once the structure is loaded, **Section 2** in the sidebar activates.
        * Pick **Chain 1** and **Chain 2** from the dropdowns.
-       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\text{ Å}$, $5.0\text{ Å}$, or $6.0\text{ Å}$).
+       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\\text{ Å}$, $5.0\\text{ Å}$, or $6.0\\text{ Å}$).
 
     3. **Interact and Filter the 3D View**:
        * The **3D Molecular View** displays cartoons of both chains, linked by yellow dashed lines at the contact coordinates.
        * Use the right-hand **3D Filter Display** panel to turn labels on/off, change the viewer background, and customize cartoon chain colors.
-       * To focus on a subset of residues, select them in the **"Select contact residue pairs to display"** multi-select box.
+       * To focus on a subset of residues, select them in the **\"Select contact residue pairs to display\"** multi-select box.
        * Click **Reset 3D View** to restore the default camera, or **Save 3D View as PNG Image** to save a snapshot.
 
     4. **Examine Tabular Analysis & Download CSVs**:
@@ -190,7 +194,7 @@ with main_tab_help:
          * **🧬 Unique Interface Residues**: Lists unique interface residues and chemical grouping charts.
          * **🔗 Residue-Residue Pairs**: Lists closest atom pairings with contact distances.
          * **🔍 Detailed Atom-Atom Contacts**: Explores contacts on an individual atomic coordinate level.
-       * Click the **"Download CSV"** buttons inside each tab to download that specific spreadsheet.
+       * Click the **\"Download CSV\"** buttons inside each tab to download that specific spreadsheet.
 
     5. **Export Your Report**:
        * Scroll to the bottom of the page to find the **Export Report as PDF** section.
@@ -489,7 +493,7 @@ with main_tab_analysis:
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     total_unique_res = len(interface_residues_a) + len(interface_residues_b)
-                    st.metric("Unique Interface Residues", f"{total_unique_res} (C1: {len(interface_residues_a)}, C2: {len(interface_residues_b)})")
+                    st.metric("Unique Interface Residues", f" {total_unique_res} (C1: {len(interface_residues_a)}, C2: {len(interface_residues_b)})")
                 with col2:
                     st.metric("Residue–Residue Pairs", len(df_pairs))
                 with col3:
