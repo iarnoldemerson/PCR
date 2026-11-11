@@ -60,7 +60,7 @@ st.markdown("""
         background-color: #3B82F6 !important;
         color: #FFFFFF !important;
         border: 1px solid #2563EB !important;
-        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); 
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
     }
 
     /* Styled Custom Headers for Sidebar & Main Panel Widgets */
@@ -550,7 +550,7 @@ with main_tab_analysis:
                                     data=csv_aa_stats,
                                     file_name=f"amino_acid_frequency_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                                     mime="text/csv"
-                        )
+                                )
                             with col_chart_i:
                                 st.bar_chart(aa_counts, use_container_width=True)
 
