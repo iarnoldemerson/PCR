@@ -1,5 +1,4 @@
 
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -138,7 +137,8 @@ pdb_raw_data = None
 pdb_id = ""
 
 if input_method == "Fetch from PDB (RCSB)":
-    pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "6Q9O").strip()
+    # Kept empty default value so it doesn't auto-fetch until user inputs a PDB ID
+    pdb_id = st.sidebar.text_input("Enter 4-letter PDB ID (e.g., 6Q9O):", "").strip()
     if pdb_id:
         try:
             pdbl = PDBList()
@@ -411,9 +411,9 @@ with main_tab_analysis:
 
                             # Clean iframe component view with 'Capture Snapshot' buttons removed
                             py3dmol_html = f"""
-                            <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative;"></div>
-                            <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
-                                <button id="reset_view_btn" style="
+                            <div id=\"3dmol_canvas\" style=\"width: 100%; height: 500px; position: relative;\"></div>
+                            <div style=\"margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;\">
+                                <button id=\"reset_view_btn\" style=\"
                                     background-color: #6B7280;
                                     color: white;
                                     border: none;
@@ -422,8 +422,8 @@ with main_tab_analysis:
                                     font-weight: 600;
                                     cursor: pointer;
                                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                ">🔄 Reset 3D View</button>
-                                <button id="download_png_btn" style="
+                                \">🔄 Reset 3D View</button>
+                                <button id=\"download_png_btn\" style=\"
                                     background-color: #2563EB;
                                     color: white;
                                     border: none;
@@ -432,9 +432,9 @@ with main_tab_analysis:
                                     font-weight: 600;
                                     cursor: pointer;
                                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                ">📸 Save 3D View as PNG Image</button>
+                                \">📸 Save 3D View as PNG Image</button>
                             </div>
-                            <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
+                            <script src=\"https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js\"></script>
                             <script>
                                 var element = document.getElementById('3dmol_canvas');
                                 var config = {{ backgroundColor: '{bg_color_option}' }};
@@ -464,7 +464,7 @@ with main_tab_analysis:
                                 document.getElementById('download_png_btn').addEventListener('click', function() {{
                                     try {{
                                         var canvas = document.getElementsByTagName('canvas')[0];
-                                        if (!canvas) throw new Error("Canvas element not found.");
+                                        if (!canvas) throw new Error(\"Canvas element not found.\");
                                         var dataUrl = canvas.toDataURL('image/png');
                                         var link = document.createElement('a');
                                         link.href = dataUrl;
