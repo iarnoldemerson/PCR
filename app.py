@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 # ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
@@ -376,8 +376,7 @@ with main_tab_analysis:
                     if pdb_raw_data:
                         try:
                             # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
-                            escaped_pdb = pdb_raw_data.replace("
-", "\\n").replace("\"", "\\\"").replace("'", "\\\'")
+                            escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("'", "\\\'")
 
                             cylinder_lines_js = ""
                             labels_js = ""
