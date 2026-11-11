@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -603,8 +604,49 @@ if structure:
 
                 # Metrics Section
                 story.append(Paragraph("1. Key Interface Metrics", section_style))
-                metrics_data = [
+                metrics_table_data = [
                     ["Metric Name", "Value"],
                     ["Total Unique Interface Residues", str(total_unique_res)],
-                    [f"  - Chain {chain_a} Residues", str(len(interface_residues_a))],
-                    [f
+                    [f"- Chain {chain_a} Residues", str(len(interface_residues_a))],
+                    [f"- Chain {chain_b} Residues", str(len(interface_residues_b))],
+                    ["Residue-Residue Pairs", str(len(df_pairs))],
+                    ["Atom-Atom Contacts", str(len(df_atoms))]
+                ]
+                t_metrics = Table(metrics_table_data, colWidths=[250, 100])
+                t_metrics.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (1,0), colors.HexColor('#3B82F6')),
+                    ('TEXTCOLOR', (0,0), (1,0), colors.white),
+                    ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                    ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB'))
+                ]))
+                story.append(t_metrics)
+                story.append(Spacer(1, 15))
+
+                # Property Analysis Section
+                if df_groups is not None:
+                    story.append(Paragraph("2. Chemical Group Distributions", section_style))
+                    groups_table_data = [["Category", "Count", "Percentage (%)"]]
+                    for idx, row in df_groups.iterrows():
+                        groups_table_data.append([str(row["Category"]), str(row["Count"]), f"{row['Percentage (%)']:.2f}%"])
+                    t_groups = Table(groups_table_data, colWidths=[200, 70, 100])
+                    t_groups.setStyle(TableStyle([
+                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#10B981')),
+                        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                        ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB'))
+                    ]))
+                    story.append(t_groups)
+                    story.append(Spacer(1, 15))
+
+                # Build document
+                doc.build(story)
+                pdf_data = pdf_buffer.getvalue()
+                st.download_button(
+                    label="📥 Download PDF Report",
+                    data=pdf_data,
+                    file_name=f"protein_contact_report_{pdb_id}_{chain_a}_{chain_b}.pdf",
+                    mime="application/pdf"
+                )
