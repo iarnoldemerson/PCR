@@ -515,9 +515,38 @@ if structure:
 
                 with tab4:
                     st.markdown("### 📘 Structural Interface Analysis Guide")
-                    st.write("Welcome to the reference guide for interpreting your inter-chain contact data. Below, we explain the core scientific distinctions between the physical measurements calculated by this server.")
+                    st.write("Welcome to the reference guide and operating manual for this application. Below are step-by-step instructions for executing your contact calculations and interacting with your results.")
                     
-                    st.markdown("#### 1. Core Structural Metrics")
+                    st.markdown("#### 🚀 Step-by-Step Instructions")
+                    st.markdown("""
+                    1. **Load Your Protein Structure**:
+                       * Look at **Section 1** in the left sidebar.
+                       * Select either **Fetch from PDB (RCSB)** (type any valid 4-character PDB ID, such as `6Q9O`) or choose **Upload PDB File** to provide a local `.pdb` file directly from your computer.
+                    
+                    2. **Configure Your Chains and Threshold**:
+                       * Once the structure is loaded, **Section 2** in the sidebar activates.
+                       * Pick **Chain 1** and **Chain 2** from the dropdowns.
+                       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\text{ Å}$, $5.0\text{ Å}$, or $6.0\text{ Å}$).
+                    
+                    3. **Interact and Filter the 3D View**:
+                       * The **3D Molecular View** on the left displays cartoons of both chains, linked by yellow dashed lines at the contact coordinates.
+                       * Use the right-hand **3D Filter Display** panel to turn labels on/off, change the viewer background, and customize cartoon chain colors.
+                       * To focus on a subset of residues, select them in the **"Select contact residue pairs to display"** multi-select box.
+                       * Click **Reset 3D View** to restore the default camera, or **Save 3D View as PNG Image** to save a snapshot.
+                    
+                    4. **Examine Tabular Analysis & Download CSVs**:
+                       * Click through the tabs below the viewer to study the results:
+                         * **🧬 Unique Interface Residues**: Lists unique interface residues and chemical grouping charts.
+                         * **🔗 Residue-Residue Pairs**: Lists closest atom pairings with contact distances.
+                         * **🔍 Detailed Atom-Atom Contacts**: Explores contacts on an individual atomic coordinate level.
+                       * Click the **"Download CSV"** buttons inside each tab to download that specific spreadsheet.
+                    
+                    5. **Export Your Report**:
+                       * Scroll to the bottom of the page to find the **Export Report as PDF** section.
+                       * Click **Download PDF Report** to generate a formatted document complete with your metrics, chemical charts, distance histogram, and a contact table.
+                    """)
+
+                    st.markdown("#### 🧬 Understanding the Metrics")
                     st.markdown("""
                     * **Unique Interface Residues**:
                       * *What it is*: The absolute count of distinct residues participating in contacts across both chains.
@@ -530,7 +559,7 @@ if structure:
                       * *Why it matters*: This metric describes the physical intensity or packing density of the interface. A high count of atomic contacts between a residue pair usually implies tightly nested packing or complex hydrogen bonding networks.
                     """)
 
-                    st.markdown("#### 2. Distance Cut-off Quick Reference")
+                    st.markdown("#### 📏 Distance Cut-off Reference")
                     st.markdown("""
                     * **4.0 Å (Close Contacts)**: Ideal for highlighting specific high-affinity interactions such as hydrogen bonds, salt bridges, and closely-packed hydrophobic interactions.
                     * **5.0 Å (Standard Contact Definition)**: The classical structural biology default. Captures both specific bonds and secondary van der Waals interactions across the binding interface.
