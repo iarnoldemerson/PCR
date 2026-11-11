@@ -1,5 +1,4 @@
 
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -19,69 +18,76 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
 
 # Inject Custom CSS to highlight Titles, Tabs and Sidebar Headers
-st.markdown("""
-    <style>
-    /* Highlight main title */
-    .main-title {
-        font-size: 2.8rem !important;
-        font-weight: 800 !important;
-        color: #1E3A8A !important;
-        text-align: center;
-        margin-bottom: 5px;
-        padding: 10px;
-        background: linear-gradient(90deg, #EFF6FF, #DBEAFE, #EFF6FF);
-        border-radius: 12px;
-        border-left: 8px solid #3B82F6;
-    }
+try:
+    st.markdown("""
+        <style>
+        /* Highlight main title */
+        .main-title {
+            font-size: 2.8rem !important;
+            font-weight: 800 !important;
+            color: #1E3A8A !important;
+            text-align: center;
+            margin-bottom: 5px;
+            padding: 10px;
+            background: linear-gradient(90deg, #EFF6FF, #DBEAFE, #EFF6FF);
+            border-radius: 12px;
+            border-left: 8px solid #3B82F6;
+        }
 
-    /* Highlight and style navigation Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-        background-color: #F3F4F6;
-        padding: 8px 12px;
-        border-radius: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: #FFFFFF;
-        border-radius: 6px;
-        color: #4B5563 !important;
-        font-weight: 600 !important;
-        padding: 0 16px;
-        border: 1px solid #E5E7EB;
-        transition: all 0.2s ease;
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        color: #2563EB !important;
-        border-color: #3B82F6;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #3B82F6 !important;
-        color: #FFFFFF !important;
-        border: 1px solid #2563EB !important;
-        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
-    }
+        /* Highlight and style navigation Tabs */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 12px;
+            background-color: #F3F4F6;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            white-space: pre-wrap;
+            background-color: #FFFFFF;
+            border-radius: 6px;
+            color: #4B5563 !important;
+            font-weight: 600 !important;
+            padding: 0 16px;
+            border: 1px solid #E5E7EB;
+            transition: all 0.2s ease;
+        }
+        .stTabs [data-baseweb="tab"]:hover {
+            color: #2563EB !important;
+            border-color: #3B82F6;
+        }
+        .stTabs [aria-selected="true"] {
+            background-color: #3B82F6 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #2563EB !important;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+        }
 
-    /* Styled Custom Headers for Sidebar & Main Panel Widgets */
-    .sidebar-header-highlight {
-        font-size: 1.25rem !important;
-        font-weight: 700 !important;
-        color: #FFFFFF !important;
-        background-color: #1E3A8A !important;
-        padding: 8px 12px;
-        border-radius: 6px;
-        margin-top: 20px;
-        margin-bottom: 12px;
-        border-left: 5px solid #3B82F6;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    </style>
-""", unsafe_allow_html=True) 
+        /* Styled Custom Headers for Sidebar & Main Panel Widgets */
+        .sidebar-header-highlight {
+            font-size: 1.25rem !important;
+            font-weight: 700 !important;
+            color: #FFFFFF !important;
+            background-color: #1E3A8A !important;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            border-left: 5px solid #3B82F6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        </style>
+    """, unsafe_allow_html=True)
+except Exception:
+    pass
 
 # Display Highlighted Title
 st.markdown("<div class=\"main-title\">⚕️ Protein Contact Residue Server</div>", unsafe_allow_html=True)
-st.write("Determine contact residues between two protein chains using customizable distance thresholds.")
+
+# Introductory description paragraph describing the application
+st.markdown("""
+**The Protein Contact Residue Server** is a state-of-the-art interactive web tool designed for structural biologists and biochemists to perform precise, distance-based calculations of physical contacts across macromolecular binding interfaces. By parsing coordinate files directly from the Protein Data Bank (RCSB PDB) or handling local custom files, this program identifies inter-chain residue networks, quantifies atomic coordinate intersections, and provides operational physicochemical classification breakdowns. The application features a dynamic 3D molecular viewer and generates professional publication-ready summaries alongside fully formatted PDF and CSV records.
+""")
 
 # Display attached user image
 image_path = "/content/Screenshot 2026-11-11 at 12.03.52 PM.png"
@@ -201,12 +207,12 @@ with main_tab_help:
     2. **Configure Your Chains and Threshold**:
        * Once the structure is loaded, **Section 2** in the sidebar activates.
        * Pick **Chain 1** and **Chain 2** from the dropdowns.
-       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\text{ Å}$, $5.0\text{ Å}$, or $6.0\text{ Å}$).
+       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\\text{ Å}$, $5.0\\text{ Å}$, or $6.0\\text{ Å}$).
 
     3. **Interact and Filter the 3D View**:
        * The **3D Molecular View** displays cartoons of both chains, linked by yellow dashed lines at the contact coordinates.
        * Use the right-hand **3D Filter Display** panel to turn labels on/off, change the viewer background, and customize cartoon chain colors.
-       * To focus on a subset of residues, select them in the **\"Select contact residue pairs to display\"** multi-select box.
+       * To focus on a subset of residues, select them in the **\\"Select contact residue pairs to display\\"** multi-select box.
        * Click **Reset 3D View** to restore the default camera, or **Save 3D View as PNG Image** to save a snapshot.
 
     4. **Examine Tabular Analysis & Download CSVs**:
@@ -214,7 +220,7 @@ with main_tab_help:
          * **🧬 Unique Interface Residues**: Lists unique interface residues and chemical grouping charts.
          * **🔗 Residue-Residue Pairs**: Lists closest atom pairings with contact distances.
          * **🔍 Detailed Atom-Atom Contacts**: Explores contacts on an individual atomic coordinate level.
-       * Click the **\"Download CSV\"** buttons inside each tab to download that specific spreadsheet.
+       * Click the **\\"Download CSV\\"** buttons inside each tab to download that specific spreadsheet.
 
     5. **Export Your Report**:
        * Scroll to the bottom of the page to find the **Export Report as PDF** section.
