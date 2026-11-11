@@ -11,15 +11,11 @@ import streamlit.components.v1 as components
 
 # ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
 st.set_page_config(page_title="Protein Contact Residue Server", layout="wide")
-
-# Initialize Session State for holding snapshot image data
-if "snapshot_base64" not in st.session_state:
-    st.session_state["snapshot_base64"] = ""
 
 # Inject Custom CSS to highlight Titles, Tabs and Sidebar Headers
 st.markdown("""
@@ -350,7 +346,7 @@ if structure:
                             viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
                             """
 
-                        # Safe, clean layout that uses standard browser storage to bypass cross-origin restrictions completely!
+                        # Clean iframe component view with 'Capture Snapshot' buttons removed
                         py3dmol_html = f"""
                         <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative;"></div>
                         <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
@@ -374,16 +370,6 @@ if structure:
                                 cursor: pointer;
                                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                             ">📸 Save 3D View as PNG Image</button>
-                            <button id="bind_report_btn" style="
-                                background-color: #8B5CF6;
-                                color: white;
-                                border: none;
-                                padding: 8px 16px;
-                                border-radius: 6px;
-                                font-weight: 600;
-                                cursor: pointer;
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                            ">📺 Capture Snapshot for PDF</button>
                         </div>
                         <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
                         <script>
@@ -425,20 +411,6 @@ if structure:
                                     document.body.removeChild(link);
                                 }} catch(err) {{
                                     alert('Failed to generate PNG capture: ' + err.message);
-                                }}
-                            }});
-
-                            // Safely communicate raw screenshot by writing base64 directly to browser LocalStorage
-                            document.getElementById('bind_report_btn').addEventListener('click', function() {{
-                                try {{
-                                    var canvas = document.getElementsByTagName('canvas')[0];
-                                    if (!canvas) throw new Error("Canvas element not found.");
-                                    var dataUrl = canvas.toDataURL('image/png');
-                                    var raw_b64 = dataUrl.split(',')[1];
-                                    localStorage.setItem('pcr_snap_cache', raw_b64);
-                                    alert('✅ 3D View snapshot successfully captured & saved inside your browser cache! Now, paste or click Load below to generate your PDF Report.');
-                                }} catch(err) {{
-                                    alert('Failed to capture snapshot: ' + err.message);
                                 }}
                             }});
                         </script>
@@ -539,15 +511,10 @@ if structure:
                         mime="text/csv"
                     )
 
-                # PDF Generation Export Section
+                # PDF Generation Export Section (Snapshot features removed completely)
                 st.markdown("---")
                 st.subheader("📥 Export Report as PDF")
                 st.write("Generate a detailed, formatted PDF summary containing structural metrics, amino acid category breakdowns, and the contact residue table.")
-
-                # Create input field for base64 string paste as secure sandboxed cross-origin fallback
-                manual_b64 = st.text_area("To include the 3D Molecular image in your PDF, paste the Base64 snapshot code generated when clicking 'Capture Snapshot' above:", height=100)
-                if manual_b64:
-                    st.session_state["snapshot_base64"] = manual_b64.strip()
 
                 pdf_buffer = io.BytesIO()
                 doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -578,21 +545,6 @@ if structure:
                 story.append(Paragraph(f"<b>Interface Chains:</b> Chain {chain_a} & Chain {chain_b}", normal_style))
                 story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} Å", normal_style))
                 story.append(Spacer(1, 15))
-
-                # Conditional Snapshot Inclusion
-                if st.session_state["snapshot_base64"]:
-                    try:
-                        story.append(Paragraph("Active 3D Molecular Snapshot", section_style))
-                        img_data = base64.b64decode(st.session_state["snapshot_base64"])
-                        img_buffer = io.BytesIO(img_data)
-                        story.append(Image(img_buffer, width=400, height=300))
-                        story.append(Spacer(1, 15))
-                    except Exception as e:
-                        story.append(Paragraph(f"(Could not load active 3D view snapshot image: {e})", normal_style))
-                        story.append(Spacer(1, 15))
-                else:
-                    story.append(Paragraph("<i>Note: No 3D view snapshot was selected. Click 'Capture Snapshot for PDF' above, then paste the string in the box to include structural graphics in this report.</i>", normal_style))
-                    story.append(Spacer(1, 15))
 
                 # Metrics Section
                 story.append(Paragraph("1. Key Interface Metrics", section_style))
@@ -632,6 +584,40 @@ if structure:
                     ]))
                     story.append(t_groups)
                     story.append(Spacer(1, 15))
+
+                # 3. Residue-Residue Contacts Table Section inside PDF
+                story.append(Paragraph("3. Residue-Residue Contact Pairs Table", section_style))
+                pairs_table_data = [["Index", f"Res {chain_a}", f"ID {chain_a}", f"Res {chain_b}", f"ID {chain_b}", "Dist (Å)"]]
+                
+                # Include rows up to 100 for safety, or all if smaller
+                max_rows_to_render = min(100, len(df_pairs))
+                for idx, row in df_pairs.head(max_rows_to_render).iterrows():
+                    pairs_table_data.append([
+                        str(idx),
+                        str(row["Residue A Name"]),
+                        str(row["Residue A ID"]),
+                        str(row["Residue B Name"]),
+                        str(row["Residue B ID"]),
+                        str(row["Minimum Distance (Å)"])
+                    ])
+                
+                # Dynamic Column Width adjustment for report flow
+                t_pairs = Table(pairs_table_data, colWidths=[50, 70, 70, 70, 70, 70])
+                t_pairs.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F3F4F6')),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0,0), (-1,-1), 9),
+                    ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB')),
+                    ('TOPPADDING', (0,0), (-1,-1), 4),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                ]))
+                story.append(t_pairs)
+                
+                if len(df_pairs) > max_rows_to_render:
+                    story.append(Spacer(1, 5))
+                    story.append(Paragraph(f"<i>* Note: Only the first {max_rows_to_render} contacts are displayed here. Download the complete CSV for full contact sets.</i>", normal_style))
 
                 # Build document
                 doc.build(story)
