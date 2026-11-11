@@ -108,6 +108,7 @@ def get_amino_acid_statistics(all_unique_res):
     res_names_only = [res[:3].upper() for res in all_unique_res if len(res) >= 3]
     tot_unique = len(res_names_only)
 
+
     if tot_unique == 0:
         return None, None, None
 
@@ -439,7 +440,7 @@ with main_tab_analysis:
                                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                                 \">📸 Save 3D View as PNG Image</button>
                             </div>
-                            <script src=\"https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js\"></script>
+                            <script src=\"https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js\"\></script>
                             <script>
                                 var element = document.getElementById('3dmol_canvas');
                                 var config = {{ backgroundColor: '{bg_color_option}' }};
@@ -538,16 +539,8 @@ with main_tab_analysis:
                                     mime="text/csv"
                                 )
                             with col_chart_i:
-                                # Generate custom Matplotlib bar chart for amino acid frequency distribution
-                                fig_aa, ax_aa = plt.subplots(figsize=(6, 4.5))
-                                aa_counts.plot(kind='bar', color='#3B82F6', edgecolor='black', alpha=0.8, ax=ax_aa)
-                                ax_aa.set_title("Amino Acid Frequency Distribution at Interface", fontsize=12, fontweight='bold', pad=12)
-                                ax_aa.set_xlabel("Amino Acid Code", fontsize=10, labelpad=8)
-                                ax_aa.set_ylabel("Occurrence Count", fontsize=10, labelpad=8)
-                                ax_aa.grid(True, axis='y', linestyle='--', alpha=0.5)
-                                plt.xticks(rotation=45)
-                                plt.tight_layout()
-                                st.pyplot(fig_aa)
+                                # Restore Streamlit's original native, interactive bar chart
+                                st.bar_chart(aa_counts, use_container_width=True)
 
                             st.markdown("---")
 
@@ -564,17 +557,8 @@ with main_tab_analysis:
                                     mime="text/csv"
                                 )
                             with col_chart_ii:
-                                # Generate custom Matplotlib bar chart for chemical group distributions
-                                fig_g, ax_g = plt.subplots(figsize=(6, 4.5))
-                                group_data = df_groups.set_index("Category")["Count"]
-                                group_data.plot(kind='bar', color='#10B981', edgecolor='black', alpha=0.8, ax=ax_g)
-                                ax_g.set_title("Distribution of Amino Acid Chemical Groups", fontsize=12, fontweight='bold', pad=12)
-                                ax_g.set_xlabel("Chemical Classification Category", fontsize=10, labelpad=8)
-                                ax_g.set_ylabel("Total Residue Count", fontsize=10, labelpad=8)
-                                ax_g.grid(True, axis='y', linestyle='--', alpha=0.5)
-                                plt.xticks(rotation=45)
-                                plt.tight_layout()
-                                st.pyplot(fig_g)
+                                # Restore Streamlit's original native, interactive bar chart
+                                st.bar_chart(df_groups.set_index("Category")["Count"], use_container_width=True)
                         else:
                             st.write("No residues to display properties for.")
 
