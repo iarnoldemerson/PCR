@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -537,7 +538,16 @@ with main_tab_analysis:
                                     mime="text/csv"
                                 )
                             with col_chart_i:
-                                st.bar_chart(aa_counts, use_container_width=True)
+                                # Generate custom Matplotlib bar chart for amino acid frequency distribution
+                                fig_aa, ax_aa = plt.subplots(figsize=(6, 4.5))
+                                aa_counts.plot(kind='bar', color='#3B82F6', edgecolor='black', alpha=0.8, ax=ax_aa)
+                                ax_aa.set_title("Amino Acid Frequency Distribution at Interface", fontsize=12, fontweight='bold', pad=12)
+                                ax_aa.set_xlabel("Amino Acid Code", fontsize=10, labelpad=8)
+                                ax_aa.set_ylabel("Occurrence Count", fontsize=10, labelpad=8)
+                                ax_aa.grid(True, axis='y', linestyle='--', alpha=0.5)
+                                plt.xticks(rotation=45)
+                                plt.tight_layout()
+                                st.pyplot(fig_aa)
 
                             st.markdown("---")
 
@@ -554,7 +564,17 @@ with main_tab_analysis:
                                     mime="text/csv"
                                 )
                             with col_chart_ii:
-                                st.bar_chart(df_groups.set_index("Category")["Count"], use_container_width=True)
+                                # Generate custom Matplotlib bar chart for chemical group distributions
+                                fig_g, ax_g = plt.subplots(figsize=(6, 4.5))
+                                group_data = df_groups.set_index("Category")["Count"]
+                                group_data.plot(kind='bar', color='#10B981', edgecolor='black', alpha=0.8, ax=ax_g)
+                                ax_g.set_title("Distribution of Amino Acid Chemical Groups", fontsize=12, fontweight='bold', pad=12)
+                                ax_g.set_xlabel("Chemical Classification Category", fontsize=10, labelpad=8)
+                                ax_g.set_ylabel("Total Residue Count", fontsize=10, labelpad=8)
+                                ax_g.grid(True, axis='y', linestyle='--', alpha=0.5)
+                                plt.xticks(rotation=45)
+                                plt.tight_layout()
+                                st.pyplot(fig_g)
                         else:
                             st.write("No residues to display properties for.")
 
@@ -687,7 +707,7 @@ with main_tab_analysis:
                         res_b_str = f"{row['Residue B Name']}{row['Residue B ID']}"
                         try:
                             dist_val = float(row["Minimum Distance (Å)"])
-                            dist_formatted = f"{dist_val:.3f}"
+                            dist_formatted = f" {dist_val:.3f}"
                         except:
                             dist_formatted = str(row["Minimum Distance (Å)"])
 
