@@ -86,7 +86,7 @@ try:
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         </style>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True) 
 except Exception:
     pass
 
@@ -222,6 +222,7 @@ with main_tab_help:
        * The **3D Molecular View** displays cartoons of both chains, linked by yellow dashed lines at the contact coordinates.
        * Use the right-hand **3D Filter Display** panel to turn labels on/off, change the viewer background, and customize cartoon chain colors.
        * To focus on a subset of residues, select them in the **\\"Select contact residue pairs to display\\"** multi-select box.
+       * You can also toggle the **Transparent molecular surface** representation and customize its transparency using the **Surface Opacity** slider.
        * Click **Reset 3D View** to restore the default camera, or **Save 3D View as PNG Image** to save a snapshot.
 
     4. **Examine Tabular Analysis & Download CSVs**:
@@ -354,8 +355,8 @@ with main_tab_analysis:
                 df_atoms = pd.DataFrame(atom_contacts)
 
                 # Create DataFrame for Unique Interface Residues
-                df_interface_a = pd.DataFrame({"Chain": chain_a, "Residue": sorted(list(interface_residues_a))})
-                df_interface_b = pd.DataFrame({"Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
+                df_interface_a = pd.DataFrame("Chain": chain_a, "Residue": sorted(list(interface_residues_a)))
+                df_interface_b = pd.DataFrame("Chain": chain_b, "Residue": sorted(list(interface_residues_b)))
                 df_interface_all = pd.concat([df_interface_a, df_interface_b], ignore_index=True)
 
                 # Adjust DataFrame Indexes to be 1-based
@@ -373,6 +374,12 @@ with main_tab_analysis:
                     st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
                     enable_labels = st.checkbox("Enable Residue Labels", value=True)
                     show_molecular_surface = st.checkbox("Transparent molecular surface", value=False)
+                    
+                    # Dynamic Surface Opacity Slider
+                    if show_molecular_surface:
+                        surface_opacity = st.slider("Surface Opacity", min_value=0.1, max_value=1.0, value=0.4, step=0.1)
+                    else:
+                        surface_opacity = 0.4
 
                     if contact_links_visualization:
                         available_pairs = [link["pair_label"] for link in contact_links_visualization]
@@ -450,11 +457,11 @@ with main_tab_analysis:
                                 viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
                                 """
 
-                                # Transparent Molecular Surface calculations inside JS
+                                # Transparent Molecular Surface calculations inside JS using dynamic slider opacity
                                 if show_molecular_surface:
                                     vdw_surface_js += f"""
-                                    viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: 0.4, color: '{chain_a_color}'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
-                                    viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: 0.4, color: '{chain_b_color}'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
+                                    viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: {surface_opacity}, color: '{chain_a_color}'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
+                                    viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: {surface_opacity}, color: '{chain_b_color}'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
                                     """
 
                             # High-DPI Canvas Snapshot modification embedded below
