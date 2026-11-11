@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -7,10 +8,11 @@ import io
 import os
 import base64
 import streamlit.components.v1 as components
+import matplotlib.pyplot as plt
 
 # ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
@@ -58,7 +60,7 @@ st.markdown("""
         background-color: #3B82F6 !important;
         color: #FFFFFF !important;
         border: 1px solid #2563EB !important;
-        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); 
     }
 
     /* Styled Custom Headers for Sidebar & Main Panel Widgets */
@@ -510,10 +512,10 @@ if structure:
                         mime="text/csv"
                     )
 
-                # PDF Generation Export Section (Snapshot features removed completely)
+                # PDF Generation Export Section
                 st.markdown("---")
                 st.subheader("📥 Export Report as PDF")
-                st.write("Generate a detailed, formatted PDF summary containing structural metrics, amino acid category breakdowns, and the contact residue table.")
+                st.write("Generate a detailed, formatted PDF summary containing structural metrics, amino acid category breakdowns, the contact distance plot, and the contact residue table.")
 
                 pdf_buffer = io.BytesIO()
                 doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -584,8 +586,32 @@ if structure:
                     story.append(t_groups)
                     story.append(Spacer(1, 15))
 
-                # 3. Residue-Residue Contacts Table Section inside PDF (S.No, ResA, ResB, Distance)
-                story.append(Paragraph("3. Residue-Residue Contact Pairs Table", section_style))
+                # Distance Distribution Plot Section
+                if not df_pairs.empty and "Minimum Distance (Å)" in df_pairs.columns:
+                    story.append(Paragraph("3. Interface Contact Distance Summary Plot", section_style))
+                    try:
+                        fig, ax = plt.subplots(figsize=(6, 3))
+                        distances = df_pairs["Minimum Distance (Å)"].dropna().astype(float)
+                        ax.hist(distances, bins=10, color="#3B82F6", edgecolor="black", alpha=0.8)
+                        ax.set_title("Distribution of Minimum Residue-Residue Distances", fontsize=10, fontweight="bold", color="#1E3A8A")
+                        ax.set_xlabel("Distance (Å)", fontsize=8)
+                        ax.set_ylabel("Frequency", fontsize=8)
+                        ax.grid(True, linestyle="--", alpha=0.5)
+                        plt.tight_layout()
+
+                        img_buf = io.BytesIO()
+                        plt.savefig(img_buf, format="png", dpi=150)
+                        img_buf.seek(0)
+                        plt.close(fig)
+
+                        story.append(Image(img_buf, width=360, height=180))
+                        story.append(Spacer(1, 15))
+                    except Exception as ex_plot:
+                        story.append(Paragraph(f"<i>* Note: Could not render interface contact plot: {ex_plot}</i>", normal_style))
+                        story.append(Spacer(1, 15))
+
+                # 4. Residue-Residue Contacts Table Section inside PDF (S.No, ResA, ResB, Distance)
+                story.append(Paragraph("4. Residue-Residue Contact Pairs Table", section_style))
                 pairs_table_data = [["S.No", "ResA", "ResB", "Distance (Å)"]]
                 
                 # Include rows up to 100 for safety, or all if smaller
