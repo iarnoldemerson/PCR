@@ -93,9 +93,9 @@ except Exception:
 # Display Highlighted Title
 st.markdown("<div class=\"main-title\">⚕️ Protein Contact Residue Server</div>", unsafe_allow_html=True)
 
-# Introductory description paragraph describing the application using justified CSS layout styling
+# Introductory description paragraph describing the application using justified CSS layout styling with user's replacement text
 st.markdown("""<div class="justified-para">
-<strong>The Protein Contact Residue Server</strong> is a state-of-the-art interactive web tool designed for structural biologists and biochemists to perform precise, distance-based calculations of physical contacts across macromolecular binding interfaces. By parsing coordinate files directly from the Protein Data Bank (RCSB PDB) or handling local custom files, this program identifies inter-chain residue networks, quantifies atomic coordinate intersections, and provides operational physicochemical classification breakdowns. The application features a dynamic 3D molecular viewer and generates professional publication-ready summaries alongside fully formatted PDF and CSV records.
+The Protein Contact Residue Server is an advanced interactive web tool for structural biologists and biochemists. It's designed to carry out very precise distance-based calculations of physical contacts across macromolecular binding interfaces. It can take coordinate files directly from the PDB (RCSB PDB) or from your own local files and then go on to identify the inter-chain residue networks, calculate the actual atomic coordinate intersections and provide you with a full operational physicochemical classification breakdown. It has a fully interactive 3D molecular viewer and will produce a full publication quality summary along with properly formatted PDF and CSV records.
 </div>""", unsafe_allow_html=True)
 
 # Display attached user image
