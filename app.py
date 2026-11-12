@@ -305,7 +305,7 @@ with main_tab_analysis:
                         continue
                     for res_b in ch_b_obj.get_residues():
                         if res_b.id[0] != " ":
-                        continue
+                            continue
 
                         min_dist_for_pair = float("inf")
                         closest_atoms = (None, None)
@@ -467,7 +467,7 @@ with main_tab_analysis:
 
                             # High-DPI Canvas Snapshot modification embedded below
                             py3dmol_html = f"""
-                            <div id=\"3dmol_canvas\" style=\"width: 100%; height: 500px; position: relative;\"></div>
+                            <div id=\"3dmol_canvas\" style=\"width: 100%; height: 500px; position: relative\"></div>
                             <div style=\"margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;\">
                                 <button id=\"reset_view_btn\" style=\"
                                     background-color: #6B7280;
