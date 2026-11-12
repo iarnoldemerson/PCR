@@ -220,8 +220,32 @@ with main_tab_help:
        * Set your desired **Distance Cut-off** (4.0 Å, 5.0 Å, or 6.0 Å).
     3. **Evaluate Surface Energy & Buried Surface Area (BSA)**:
        * **Buried Surface Area (BSA) Calculation**: calculated as $BSA = (SASA_{Unbound, A} + SASA_{Unbound, B}) - SASA_{Complex}$.
-       * **Interface Size Classification**: BSA values $> 1,000\text{ Å}^2$ signify biologically relevant dimers; values $< 800\text{ Å}^2$ point to non-specific crystal packing.
-       * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\Delta SASA > 0$) are highlighted.
+       * **Interface Size Classification**: BSA values $> 1,000\\text{ Å}^2$ signify biologically relevant dimers; values $< 800\\text{ Å}^2$ point to non-specific crystal packing.
+       * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\\Delta SASA > 0$) are highlighted.
+    """)
+
+    st.markdown("#### 🎨 3D Filter Display Controls")
+    st.markdown("""
+    The **3D Filter Display** panel allows you to customize and focus on specific structural elements inside the 3D canvas:
+    * **Enable Residue Labels**: Toggles text annotations indicating residue name and sequence position on top of contacting side-chains.
+    * **Transparent molecular surface**: Renders a space-filling Van der Waals (VDW) style envelope over the atoms, allowing you to gauge shape complementarity.
+    * **Surface Opacity**: Controls VDW envelope transparency when active.
+    * **Select contact residue pairs**: A multi-select tool allowing you to focus on specific interacting partner pairs (e.g., `PHE42 - LYS12`) instead of viewing all overlapping bonds simultaneously.
+    * **Custom Chain Coloring & Backgrounds**: Alters the main ribbon styles and viewport background dynamically to prepare beautiful figures for publication.
+    """)
+
+    st.markdown("#### 📊 Understanding the Analysis Tables")
+    st.markdown("""
+    ##### **i) Unique Interface Residues & Property Analysis**
+    This dataset isolates individual amino acids that lose solvent accessibility ($\\Delta SASA > 0$) upon complex formation. This panel shows:
+    * **Unbound and Bound SASA**: Quantifies the transition from completely isolated monomers to the fully bound biological interface.
+    * **Physicochemical Group Frequencies**: Automatically categorizes residues into operational categories (*Hydrophobic*, *Polar*, *Aromatic*, *Positively charged*, and *Negatively charged*) to identify the major electrostatic or hydrophobic drivers stabilizing the complex.
+
+    ##### **ii) Residue-Residue Pairs**
+    Displays a unique pair-wise interaction registry. If Residue A from Chain 1 makes physical contact with Residue B from Chain 2, they form a registered interactive pair. It provides the **minimum distance** observed between any structural heavy-atoms in the pair.
+
+    ##### **iii) Detailed Atom-Atom Contacts**
+    A fine-grained, high-resolution atom-level list tracking every individual heavy-atom pair (e.g., nitrogen, oxygen, carbon) that falls beneath the configured cut-off boundary. Use this table to map salt bridges, specific hydrogen bonds, and close atomic clashes.
     """)
 
 # Main Tab 1: Primary Analysis Section
