@@ -1,5 +1,6 @@
 
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -86,7 +87,7 @@ try:
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         </style>
-    """, unsafe_allow_html=True) 
+    """, unsafe_allow_html=True)
 except Exception:
     pass
 
@@ -304,7 +305,7 @@ with main_tab_analysis:
                         continue
                     for res_b in ch_b_obj.get_residues():
                         if res_b.id[0] != " ":
-                            continue
+                        continue
 
                         min_dist_for_pair = float("inf")
                         closest_atoms = (None, None)
@@ -355,8 +356,8 @@ with main_tab_analysis:
                 df_atoms = pd.DataFrame(atom_contacts)
 
                 # Create DataFrame for Unique Interface Residues
-                df_interface_a = pd.DataFrame("Chain": chain_a, "Residue": sorted(list(interface_residues_a)))
-                df_interface_b = pd.DataFrame("Chain": chain_b, "Residue": sorted(list(interface_residues_b)))
+                df_interface_a = pd.DataFrame({"Chain": chain_a, "Residue": sorted(list(interface_residues_a))})
+                df_interface_b = pd.DataFrame({"Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
                 df_interface_all = pd.concat([df_interface_a, df_interface_b], ignore_index=True)
 
                 # Adjust DataFrame Indexes to be 1-based
@@ -374,7 +375,7 @@ with main_tab_analysis:
                     st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
                     enable_labels = st.checkbox("Enable Residue Labels", value=True)
                     show_molecular_surface = st.checkbox("Transparent molecular surface", value=False)
-                    
+
                     # Dynamic Surface Opacity Slider
                     if show_molecular_surface:
                         surface_opacity = st.slider("Surface Opacity", min_value=0.1, max_value=1.0, value=0.4, step=0.1)
