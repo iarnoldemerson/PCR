@@ -1,10 +1,10 @@
 
 
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 from Bio.PDB import PDBParser, PDBList
+from Bio.PDB.SASA import ShrakeRupley
 import io
 import os
 import base64
@@ -94,7 +94,7 @@ except Exception:
 # Display Highlighted Title
 st.markdown("<div class=\"main-title\">⚕️ Protein Contact Residue Server</div>", unsafe_allow_html=True)
 
-# Introductory description paragraph describing the application using justified CSS layout styling with user's replacement text
+# Introductory description paragraph describing the application
 st.markdown("""<div class="justified-para">
 The Protein Contact Residue Server is an advanced interactive web tool for structural biologists and biochemists. It's designed to carry out very precise distance-based calculations of physical contacts across macromolecular binding interfaces. It can take coordinate files directly from the PDB (RCSB PDB) or from your own local files and then go on to identify the inter-chain residue networks, calculate the actual atomic coordinate intersections and provide you with a full operational physicochemical classification breakdown. It has a fully interactive 3D molecular viewer and will produce a full publication quality summary along with properly formatted PDF and CSV records.
 </div>""", unsafe_allow_html=True)
@@ -203,7 +203,7 @@ else:
         except Exception as e:
             st.sidebar.error(f"Error parsing uploaded PDB file: {e}")
 
-# Main Tab 2: Help Guide (Rendered at top of the page)
+# Main Tab 2: Help Guide
 with main_tab_help:
     st.markdown("### 📘 Structural Interface Analysis Guide")
     st.write("Welcome to the reference guide and operating manual for this application. Below are step-by-step instructions for executing your contact calculations and interacting with your results.")
@@ -212,50 +212,17 @@ with main_tab_help:
     st.markdown("""
     1. **Load Your Protein Structure**:
        * Look at **Section 1** in the left sidebar.
-       * Select either **Fetch from PDB (RCSB)** (type any valid 4-character PDB ID, such as `6Q9O`) or choose **Upload PDB File** to provide a local `.pdb` file directly from your computer.
-
+       * Select either **Fetch from PDB (RCSB)** or choose **Upload PDB File**.
     2. **Configure Your Chains and Threshold**:
-       * Once the structure is loaded, **Section 2** in the sidebar activates.
-       * Pick **Chain 1** and **Chain 2** from the dropdowns.
-       * Set your desired **Distance Cut-off** using the dropdown options ($4.0\\text{ Å}$, $5.0\\text{ Å}$, or $6.0\\text{ Å}$).
-
+       * Once the structure is loaded, select **Chain 1** and **Chain 2** from the dropdowns.
+       * Set your desired **Distance Cut-off** (4.0 Å, 5.0 Å, or 6.0 Å).
     3. **Interact and Filter the 3D View**:
-       * The **3D Molecular View** displays cartoons of both chains, linked by yellow dashed lines at the contact coordinates.
-       * Use the right-hand **3D Filter Display** panel to turn labels on/off, change the viewer background, and customize cartoon chain colors.
-       * To focus on a subset of residues, select them in the **\\"Select contact residue pairs to display\\"** multi-select box.
-       * You can also toggle the **Transparent molecular surface** representation and customize its transparency using the **Surface Opacity** slider.
-       * Click **Reset 3D View** to restore the default camera, or **Save 3D View as PNG Image** to save a snapshot.
-
+       * The interactive 3D view shows cartoon residues connected with yellow cylinders.
+       * Customize background, cartoon chain colors, surface transparencies, and residue labels in the 3D Filter Display panel.
     4. **Examine Tabular Analysis & Download CSVs**:
-       * Click through the tabs below the viewer to study the results:
-         * **🧬 Unique Interface Residues**: Lists unique interface residues and chemical grouping charts.
-         * **🔗 Residue-Residue Pairs**: Lists closest atom pairings with contact distances.
-         * **🔍 Detailed Atom-Atom Contacts**: Explores contacts on an individual atomic coordinate level.
-       * Click the **\\"Download CSV\\"** buttons inside each tab to download that specific spreadsheet.
-
-    5. **Export Your Report**:
-       * Scroll to the bottom of the page to find the **Export Report as PDF** section.
-       * Click **Download PDF Report** to generate a formatted document complete with your metrics, chemical charts, distance histogram, and a contact table.
-    """)
-
-    st.markdown("#### 🧬 Understanding the Metrics")
-    st.markdown("""
-    * **Unique Interface Residues**:
-      * *What it is*: The absolute count of distinct residues participating in contacts across both chains.
-      * *Why it matters*: If Residue `ALA12` on Chain A is close enough to interact with both `VAL40` and `LEU42` on Chain B, `ALA12` is only counted **once** as a unique interface residue. This metric is ideal for estimating the overall surface area of the active interface region.
-    * **Residue-Residue Pairs**:
-      * *What it is*: Unique combinations of contacting residue pairs (e.g., `ALA12` - `VAL40`).
-      * *Why it matters*: Unlike the atom count, this is a sequence-level metric. If multiple atoms in `ALA12` interact with multiple atoms in `VAL40`, it still yields exactly one residue pair contact.
-    * **Atom-Atom Contacts**:
-      * *What it is*: The raw physical contacts occurring at the atomic level (e.g., side-chain carbons or backbone oxygens/nitrogens within the cut-off boundary).
-      * *Why it matters*: This metric describes the physical intensity or packing density of the interface. A high count of atomic contacts between a residue pair usually implies tightly nested packing or complex hydrogen bonding networks.
-    """)
-
-    st.markdown("#### 📏 Distance Cut-off Reference")
-    st.markdown("""
-    * **4.0 Å (Close Contacts)**: Ideal for highlighting specific high-affinity interactions such as hydrogen bonds, salt bridges, and closely-packed hydrophobic interactions.
-    * **5.0 Å (Standard Contact Definition)**: The classical structural biology default. Captures both specific bonds and secondary van der Waals interactions across the binding interface.
-    * **6.0 Å (Broader Interfaces)**: Useful for identifying flanking, solvent-accessible residues that define the broader hydration shell or structural pocket of the interface.
+       * **🧬 Unique Interface Residues**: Displays unique interface residues per chain with their calculated Solvent Accessible Surface Area (SASA).
+       * **🔗 Residue-Residue Pairs**: Lists closest atom pairings with contact distances.
+       * **🔍 Detailed Atom-Atom Contacts**: Explores contacts on an individual atomic level.
     """)
 
 # Main Tab 1: Primary Analysis Section
@@ -286,6 +253,15 @@ with main_tab_analysis:
             format_func=lambda x: cutoff_options[x],
             index=1
         )
+
+        # Compute Solvent Accessible Surface Area (SASA) for entire model
+        sasa_calculated = False
+        try:
+            sr = ShrakeRupley()
+            sr.compute(selected_model, level="R")
+            sasa_calculated = True
+        except Exception as sasa_err:
+            pass
 
         if chain_a and chain_b:
             if chain_a == chain_b:
@@ -355,9 +331,26 @@ with main_tab_analysis:
                 df_pairs = pd.DataFrame(list(unique_pairs.values()))
                 df_atoms = pd.DataFrame(atom_contacts)
 
+                # Get SASA values if available
+                def get_sasa(res_str, chain_obj):
+                    if not sasa_calculated:
+                        return "N/A"
+                    for res in chain_obj.get_residues():
+                        if f"{res.get_resname()}{res.id[1]}" == res_str:
+                            return round(res.sasa, 2) if hasattr(res, 'sasa') else "N/A"
+                    return "N/A"
+
                 # Create DataFrame for Unique Interface Residues
-                df_interface_a = pd.DataFrame({"Chain": chain_a, "Residue": sorted(list(interface_residues_a))})
-                df_interface_b = pd.DataFrame({"Chain": chain_b, "Residue": sorted(list(interface_residues_b))})
+                df_interface_a_data = []
+                for r in sorted(list(interface_residues_a)):
+                    df_interface_a_data.append({"Chain": chain_a, "Residue": r, "SASA (Å²)": get_sasa(r, ch_a_obj)})
+                df_interface_a = pd.DataFrame(df_interface_a_data)
+
+                df_interface_b_data = []
+                for r in sorted(list(interface_residues_b)):
+                    df_interface_b_data.append({"Chain": chain_b, "Residue": r, "SASA (Å²)": get_sasa(r, ch_b_obj)})
+                df_interface_b = pd.DataFrame(df_interface_b_data)
+
                 df_interface_all = pd.concat([df_interface_a, df_interface_b], ignore_index=True)
 
                 # Adjust DataFrame Indexes to be 1-based
@@ -389,7 +382,6 @@ with main_tab_analysis:
                             options=available_pairs,
                             default=[]
                         )
-                        # Filter links based on selection
                         if selected_visual_pairs:
                             filtered_links = [link for link in contact_links_visualization if link["pair_label"] in selected_visual_pairs]
                         else:
@@ -398,10 +390,8 @@ with main_tab_analysis:
                         st.info("No contacts available to filter.")
                         filtered_links = []
 
-                    # Customize the visualizer background color
                     bg_color_option = st.selectbox("Viewer Background Color:", options=["black", "white", "gray"], format_func=lambda x: x.capitalize(), index=0)
 
-                    # Customize chain cartoon colors
                     color_choices = {
                         "Blue": "#3B82F6",
                         "Red": "#EF4444",
@@ -423,7 +413,6 @@ with main_tab_analysis:
 
                     if pdb_raw_data:
                         try:
-                            # Format molecular instructions using direct py3Dmol/javascript scripting wrapper
                             escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("'", "\\\'")
 
                             cylinder_lines_js = ""
@@ -434,7 +423,6 @@ with main_tab_analysis:
                             for link in filtered_links:
                                 ca = link["coord_a"]
                                 cb = link["coord_b"]
-                                # Append cylinders (dashed)
                                 cylinder_lines_js += f"""
                                 viewer.addCylinder({{
                                     start: {{x: {ca[0]}, y: {ca[1]}, z: {ca[2]}}},
@@ -446,26 +434,22 @@ with main_tab_analysis:
                                     dashed: true
                                 }});
                                 """
-                                # Labels rendering restored to original bordered design
                                 if enable_labels:
                                     labels_js += f"""
                                     viewer.addLabel('{link["label_a"]}', {{fontColor:'black', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#3B82F6'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
                                     viewer.addLabel('{link["label_b"]}', {{fontColor:'black', backgroundColor:'#FEE2E2', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#EF4444'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
                                     """
-                                # Sidechains (Stick styling)
                                 sidechains_js += f"""
                                 viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: 'cyan'}}}});
                                 viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
                                 """
 
-                                # Transparent Molecular Surface calculations inside JS using dynamic slider opacity
                                 if show_molecular_surface:
                                     vdw_surface_js += f"""
                                     viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: {surface_opacity}, color: '{chain_a_color}'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
                                     viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: {surface_opacity}, color: '{chain_b_color}'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
                                     """
 
-                            # High-DPI Canvas Snapshot modification embedded below
                             py3dmol_html = f"""
                             <div id=\"3dmol_canvas\" style=\"width: 100%; height: 500px; position: relative\"></div>
                             <div style=\"margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;\">
@@ -497,10 +481,7 @@ with main_tab_analysis:
                                 var viewer = $3Dmol.createViewer(element, config);
                                 viewer.addModel('{escaped_pdb}', 'pdb');
 
-                                // Clear styling of all molecules/chains
                                 viewer.setStyle({{}}, {{}});
-
-                                // Display ONLY the selected interacting chains with customized colors
                                 viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '{chain_a_color}'}}}});
                                 viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '{chain_b_color}'}}}});
 
@@ -511,26 +492,21 @@ with main_tab_analysis:
                                 viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
                                 viewer.render();
 
-                                // Reset camera orientation and zoom
                                 document.getElementById('reset_view_btn').addEventListener('click', function() {{
                                     viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
                                     viewer.render();
                                 }});
 
-                                // High-DPI canvas snapshot generator (publishing quality)
                                 document.getElementById('download_png_btn').addEventListener('click', function() {{
                                     try {{
                                         var oldCanvas = document.getElementsByTagName('canvas')[0];
                                         if (!oldCanvas) throw new Error(\"Canvas element not found.\");
 
-                                        // Scale factor for high DPI/resolution export (3x resolution boost)
                                         var scaleFactor = 3;
                                         var tempCanvas = document.createElement('canvas');
                                         tempCanvas.width = oldCanvas.width * scaleFactor;
                                         tempCanvas.height = oldCanvas.height * scaleFactor;
                                         var tempCtx = tempCanvas.getContext('2d');
-
-                                        // Render and stretch high-resolution output
                                         tempCtx.drawImage(oldCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
 
                                         var dataUrl = tempCanvas.toDataURL('image/png');
@@ -553,7 +529,6 @@ with main_tab_analysis:
                 # --- Inter-chain Contacts Results Table Header ---
                 st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
 
-                # Display Metrics Dashboard
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     total_unique_res = len(interface_residues_a) + len(interface_residues_b)
@@ -564,7 +539,6 @@ with main_tab_analysis:
                     st.metric("Atom–Atom Contacts", len(df_atoms))
 
                 if not df_pairs.empty:
-                    # Table data tabs
                     tab1, tab2, tab3 = st.tabs([
                         "🧬 Unique Interface Residues & Property Analysis",
                         "🔗 Residue-Residue Pairs",
@@ -572,7 +546,7 @@ with main_tab_analysis:
                     ])
 
                     with tab1:
-                        st.write("**Unique interface residues per chain (no duplicates):**")
+                        st.write("**Unique interface residues per chain (no duplicates) with calculated SASA:**")
                         st.dataframe(df_interface_all, use_container_width=True)
                         csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
                         st.download_button(
@@ -588,7 +562,6 @@ with main_tab_analysis:
                         df_aa_stats, df_groups, aa_counts = get_amino_acid_statistics(all_unique_res)
 
                         if df_aa_stats is not None:
-                            # Section i: Amino acid frequency distribution
                             st.write("**i) Amino acid frequency distribution**")
                             col_table_i, col_chart_i = st.columns(2)
                             with col_table_i:
@@ -605,7 +578,6 @@ with main_tab_analysis:
 
                             st.markdown("---")
 
-                            # Section ii: Group Distributions
                             st.write("**ii) Group Distributions**")
                             col_table_ii, col_chart_ii = st.columns(2)
                             with col_table_ii:
@@ -645,13 +617,12 @@ with main_tab_analysis:
                     # PDF Generation Export Section
                     st.markdown("---")
                     st.subheader("📥 Export Report as PDF")
-                    st.write("Generate a detailed, formatted PDF summary containing structural metrics, amino acid category breakdowns, the contact distance plot, and the contact residue table.")
+                    st.write("Generate a detailed, formatted PDF summary report.")
 
                     pdf_buffer = io.BytesIO()
                     doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
                     styles = getSampleStyleSheet()
 
-                    # Define Custom Styles safely
                     title_style = ParagraphStyle(
                         'ReportTitleStyle',
                         parent=styles['Heading1'],
@@ -670,7 +641,6 @@ with main_tab_analysis:
                     normal_style = styles['Normal']
 
                     story = []
-                    # Header
                     story.append(Paragraph("Protein Contact Residue Server Analysis Report", title_style))
                     story.append(Paragraph(f"<b>Structure Target:</b> {pdb_id.upper()}", normal_style))
                     story.append(Paragraph(f"<b>Interface Chains:</b> Chain {chain_a} & Chain {chain_b}", normal_style))
@@ -778,7 +748,6 @@ with main_tab_analysis:
                         story.append(Spacer(1, 5))
                         story.append(Paragraph(f"<i>* Note: Only the first {max_rows_to_render} contacts are displayed here. Download the complete CSV for full contact sets.</i>", normal_style))
 
-                    # Build document
                     doc.build(story)
                     pdf_data = pdf_buffer.getvalue()
                     st.download_button(
