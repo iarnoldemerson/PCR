@@ -219,8 +219,8 @@ with main_tab_help:
        * Select **Chain 1** and **Chain 2** from the dropdowns.
        * Set your desired **Distance Cut-off** (4.0 Å, 5.0 Å, or 6.0 Å).
     3. **Evaluate Surface Energy & Buried Surface Area (BSA)**:
-       * **BSA Calculation**: calculated as $BSA = (SASA_{ProteinA} + SASA_{ProteinB}) - SASA_{Complex}$.
-       * **Interface Size Classification**: Values $> 1,000\text{ Å}^2$ signify biologically relevant dimers; values $< 800\text{ Å}^2$ point to non-specific crystal packing.
+       * **Conventional BSA Calculation**: calculated as $BSA_{Conventional} = 0.5 \times [(SASA_{Unbound, A} + SASA_{Unbound, B}) - SASA_{Complex}]$.
+       * **Interface Size Classification**: Conventional BSA values $> 1,000\text{ Å}^2$ signify biologically relevant dimers; values $< 800\text{ Å}^2$ point to non-specific crystal packing.
        * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\Delta SASA > 0$) are highlighted.
     """)
 
@@ -265,6 +265,7 @@ with main_tab_analysis:
                 monomer_a_sasa = {}
                 monomer_b_sasa = {}
                 complex_sasa = {}
+                total_excluded_sasa = 0.0
                 bsa_value = 0.0
                 interface_classification = "N/A"
                 all_residue_sasa_records = []
@@ -296,7 +297,10 @@ with main_tab_analysis:
                     total_unbound_sasa_b = sum(monomer_b_sasa.values())
                     total_complex_sasa = sum([complex_sasa.get((chain_obj.id, res.id[1]), 0.0) for chain_obj in [ch_a_obj, ch_b_obj] for res in chain_obj.get_residues() if res.id[0] == " "])
 
-                    bsa_value = (total_unbound_sasa_a + total_unbound_sasa_b) - total_complex_sasa
+                    # Total Solvent-Excluded Area (combined loss)
+                    total_excluded_sasa = (total_unbound_sasa_a + total_unbound_sasa_b) - total_complex_sasa
+                    # Conventional interface BSA (half of total change)
+                    bsa_value = 0.5 * total_excluded_sasa
 
                     if bsa_value > 1000:
                         interface_classification = "Biologically Relevant Dimer (BSA > 1000 Å²)"
@@ -378,8 +382,8 @@ with main_tab_analysis:
                                     "pair_label": f"{res_a.get_resname()}{res_a.id[1]} - {res_b.get_resname()}{res_b.id[1]}",
                                     "coord_a": visual_atom_pair[0],
                                     "coord_b": visual_atom_pair[1],
-                                    "label_a": f"{res_a.get_resname()}{res_a.id[1]}",
-                                    "label_b": f"{res_b.get_resname()}{res_b.id[1]}",
+                                    "label_a": f" {res_a.get_resname()}{res_a.id[1]}",
+                                    "label_b": f" {res_b.get_resname()}{res_b.id[1]}",
                                     "spec_a": { "chain": chain_a, "resi": res_a.id[1] },
                                     "spec_b": { "chain": chain_b, "resi": res_b.id[1] }
                                 })
@@ -568,25 +572,27 @@ with main_tab_analysis:
                 # --- Inter-chain Contacts Results Table Header ---
                 st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
 
-                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+                col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
                 with col_m1:
                     total_unique_res = len(df_interface_all)
                     st.metric("Unique Interface Residues", f" {total_unique_res}")
                 with col_m2:
                     st.metric("Residue–Residue Pairs", len(df_pairs))
                 with col_m3:
-                    st.metric("Buried Surface Area (BSA)", f"{bsa_value:.1f} Å²")
+                    st.metric("Conventional BSA (1/2 ΔSASA)", f"{bsa_value:.1f} Å²")
                 with col_m4:
+                    st.metric("Total Excluded Area (ΔSASA)", f"{total_excluded_sasa:.1f} Å²")
+                with col_m5:
                     st.metric("Interface Classification", interface_classification.split(" (")[0])
 
-                st.info(f"**Buried Surface Area Metric Summary**: The total interface area is **{bsa_value:.2f} Å²** which classifies this structural interaction as a **{interface_classification}**.")
+                st.info(f"**Buried Surface Area Metric Summary**: The conventional interface BSA is **{bsa_value:.2f} Å²** (which is exactly half of the total solvent-excluded area change of **{total_excluded_sasa:.2f} Å²**). This classifies this interaction as: **{interface_classification}**.")
 
                 # Download BSA metrics CSV containing residue-level SASA values across both chains
                 if all_residue_sasa_records:
                     df_bsa_export = pd.DataFrame(all_residue_sasa_records)
                     df_bsa_export.index = df_bsa_export.index + 1
                     csv_bsa_metrics = df_bsa_export.to_csv(index=True).encode("utf-8")
-                    st.download_button(
+                    st.download_button( 
                         label="📥 Download BSA Metrics & Residue-level SASA CSV",
                         data=csv_bsa_metrics,
                         file_name=f"bsa_residue_sasa_metrics_{chain_a}_{chain_b}.csv",
@@ -705,7 +711,8 @@ with main_tab_analysis:
                     story.append(Paragraph(f"<b>Structure Target:</b> {pdb_id.upper()}", normal_style))
                     story.append(Paragraph(f"<b>Interface Chains:</b> Chain {chain_a} & Chain {chain_b}", normal_style))
                     story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} Å", normal_style))
-                    story.append(Paragraph(f"<b>Calculated Buried Surface Area (BSA):</b> {bsa_value:.2f} Å² ({interface_classification})", normal_style))
+                    story.append(Paragraph(f"<b>Conventional Interface BSA:</b> {bsa_value:.2f} Å² ({interface_classification})", normal_style))
+                    story.append(Paragraph(f"<b>Total Solvent-Excluded Area:</b> {total_excluded_sasa:.2f} Å²", normal_style))
                     story.append(Spacer(1, 15))
 
                     # Metrics Section
@@ -715,7 +722,8 @@ with main_tab_analysis:
                         ["Total Unique Interface Residues (ΔSASA > 0)", str(total_unique_res)],
                         ["Residue-Residue Pairs", str(len(df_pairs))],
                         ["Atom-Atom Contacts", str(len(df_atoms))],
-                        ["Calculated BSA", f"{bsa_value:.2f} Å²"]
+                        ["Conventional BSA (1/2 ΔSASA)", f"{bsa_value:.2f} Å²"],
+                        ["Total Excluded Area", f"{total_excluded_sasa:.2f} Å²"]
                     ]
                     t_metrics = Table(metrics_table_data, colWidths=[250, 100])
                     t_metrics.setStyle(TableStyle([
