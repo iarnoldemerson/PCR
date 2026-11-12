@@ -28,7 +28,7 @@ try:
             font-size: 2.8rem !important;
             font-weight: 800 !important;
             color: #1E3A8A !important;
-            text-align: center; 
+            text-align: center;
             margin-bottom: 5px;
             padding: 10px;
             background: linear-gradient(90deg, #EFF6FF, #DBEAFE, #EFF6FF);
@@ -220,8 +220,8 @@ with main_tab_help:
        * Set your desired **Distance Cut-off** (4.0 Å, 5.0 Å, or 6.0 Å).
     3. **Evaluate Surface Energy & Buried Surface Area (BSA)**:
        * **BSA Calculation**: calculated as $BSA = (SASA_{ProteinA} + SASA_{ProteinB}) - SASA_{Complex}$.
-       * **Interface Size Classification**: Values $> 1,000\\text{ Å}^2$ signify biologically relevant dimers; values $< 800\\text{ Å}^2$ point to non-specific crystal packing.
-       * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\\Delta SASA > 0$) are highlighted.
+       * **Interface Size Classification**: Values $> 1,000\text{ Å}^2$ signify biologically relevant dimers; values $< 800\text{ Å}^2$ point to non-specific crystal packing.
+       * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\Delta SASA > 0$) are highlighted.
     """)
 
 # Main Tab 1: Primary Analysis Section
@@ -267,43 +267,62 @@ with main_tab_analysis:
                 complex_sasa = {}
                 bsa_value = 0.0
                 interface_classification = "N/A"
+                all_residue_sasa_records = []
 
                 try:
                     sr = ShrakeRupley()
-                    
+
                     # Clone chains for unbound monomeric SASA calculation to isolate individual environments
                     from copy import deepcopy
                     monomer_a_model = deepcopy(ch_a_obj)
                     monomer_b_model = deepcopy(ch_b_obj)
-                    
+
                     sr.compute(monomer_a_model, level="R")
                     for res in monomer_a_model.get_residues():
                         monomer_a_sasa[res.id[1]] = res.sasa if hasattr(res, 'sasa') else 0.0
-                        
+
                     sr.compute(monomer_b_model, level="R")
                     for res in monomer_b_model.get_residues():
                         monomer_b_sasa[res.id[1]] = res.sasa if hasattr(res, 'sasa') else 0.0
-                        
+
                     # Compute SASA for the complex state
                     sr.compute(selected_model, level="R")
                     for chain_obj in [ch_a_obj, ch_b_obj]:
                         for res in chain_obj.get_residues():
                             complex_sasa[(chain_obj.id, res.id[1])] = res.sasa if hasattr(res, 'sasa') else 0.0
-                    
+
                     # Calculate overall Buried Surface Area (BSA)
                     total_unbound_sasa_a = sum(monomer_a_sasa.values())
                     total_unbound_sasa_b = sum(monomer_b_sasa.values())
                     total_complex_sasa = sum([complex_sasa.get((chain_obj.id, res.id[1]), 0.0) for chain_obj in [ch_a_obj, ch_b_obj] for res in chain_obj.get_residues() if res.id[0] == " "])
-                    
+
                     bsa_value = (total_unbound_sasa_a + total_unbound_sasa_b) - total_complex_sasa
-                    
+
                     if bsa_value > 1000:
                         interface_classification = "Biologically Relevant Dimer (BSA > 1000 Å²)"
                     elif bsa_value < 800:
                         interface_classification = "Non-specific Crystal Packing (BSA < 800 Å²)"
                     else:
                         interface_classification = "Intermediate Contact Region (800 - 1000 Å²)"
-                    
+
+                    # Prepare comprehensive list of all residues' SASA parameters
+                    for chain_id, ch_obj, monomer_sasa in [(chain_a, ch_a_obj, monomer_a_sasa), (chain_b, ch_b_obj, monomer_b_sasa)]:
+                        for res in ch_obj.get_residues():
+                            if res.id[0] != " ":
+                                continue
+                            res_id_val = res.id[1]
+                            res_name_full = f"{res.get_resname()}{res_id_val}"
+                            unbound_val = monomer_sasa.get(res_id_val, 0.0)
+                            bound_val = complex_sasa.get((chain_id, res_id_val), 0.0)
+                            delta_sasa = max(0.0, unbound_val - bound_val)
+                            all_residue_sasa_records.append({
+                                "Chain": chain_id,
+                                "Residue": res_name_full,
+                                "Unbound SASA (Å²)": round(unbound_val, 2),
+                                "Bound SASA (Å²)": round(bound_val, 2),
+                                "ΔSASA (Å²)": round(delta_sasa, 2)
+                            })
+
                     sasa_data_available = True
                 except Exception as sasa_err:
                     st.sidebar.error(f"SASA Calculation Error: {sasa_err}")
@@ -370,28 +389,7 @@ with main_tab_analysis:
                 df_atoms = pd.DataFrame(atom_contacts)
 
                 # Create DataFrame for Unique Interface Residues and include ΔSASA values
-                df_interface_all_data = []
-                for chain_id, ch_obj, monomer_sasa in [(chain_a, ch_a_obj, monomer_a_sasa), (chain_b, ch_b_obj, monomer_b_sasa)]:
-                    for res in ch_obj.get_residues():
-                        if res.id[0] != " ":
-                            continue
-                        res_id_val = res.id[1]
-                        res_name_full = f"{res.get_resname()}{res_id_val}"
-                        
-                        unbound_val = monomer_sasa.get(res_id_val, 0.0)
-                        bound_val = complex_sasa.get((chain_id, res_id_val), 0.0)
-                        delta_sasa = max(0.0, unbound_val - bound_val)
-                        
-                        # Only include in interface dataset if Delta SASA > 0
-                        if delta_sasa > 1e-4:
-                            df_interface_all_data.append({
-                                "Chain": chain_id,
-                                "Residue": res_name_full,
-                                "Unbound SASA (Å²)": round(unbound_val, 2),
-                                "Bound SASA (Å²)": round(bound_val, 2),
-                                "ΔSASA (Å²)": round(delta_sasa, 2)
-                            })
-                
+                df_interface_all_data = [rec for rec in all_residue_sasa_records if rec["ΔSASA (Å²)"] > 1e-4]
                 df_interface_all = pd.DataFrame(df_interface_all_data)
 
                 # Adjust DataFrame Indexes to be 1-based
@@ -583,6 +581,18 @@ with main_tab_analysis:
 
                 st.info(f"**Buried Surface Area Metric Summary**: The total interface area is **{bsa_value:.2f} Å²** which classifies this structural interaction as a **{interface_classification}**.")
 
+                # Download BSA metrics CSV containing residue-level SASA values across both chains
+                if all_residue_sasa_records:
+                    df_bsa_export = pd.DataFrame(all_residue_sasa_records)
+                    df_bsa_export.index = df_bsa_export.index + 1
+                    csv_bsa_metrics = df_bsa_export.to_csv(index=True).encode("utf-8")
+                    st.download_button(
+                        label="📥 Download BSA Metrics & Residue-level SASA CSV",
+                        data=csv_bsa_metrics,
+                        file_name=f"bsa_residue_sasa_metrics_{chain_a}_{chain_b}.csv",
+                        mime="text/csv"
+                    )
+
                 if not df_pairs.empty:
                     tab1, tab2, tab3 = st.tabs([
                         "🧬 Unique Interface Residues & Property Analysis",
@@ -608,7 +618,7 @@ with main_tab_analysis:
                             all_unique_res = df_interface_all["Residue"].tolist()
                         else:
                             all_unique_res = []
-                        
+
                         df_aa_stats, df_groups, aa_counts = get_amino_acid_statistics(all_unique_res)
 
                         if df_aa_stats is not None:
@@ -676,7 +686,7 @@ with main_tab_analysis:
                     title_style = ParagraphStyle(
                         'ReportTitleStyle',
                         parent=styles['Heading1'],
-                        fontSize=22, 
+                        fontSize=22,
                         textColor=colors.HexColor('#1E3A8A'),
                         spaceAfter=15
                     )
