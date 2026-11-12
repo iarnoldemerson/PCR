@@ -220,7 +220,7 @@ with main_tab_help:
        * Set your desired **Distance Cut-off** (4.0 Å, 5.0 Å, or 6.0 Å).
     3. **Evaluate Surface Energy & Buried Surface Area (BSA)**:
        * **Buried Surface Area (BSA) Calculation**: calculated as $BSA = (SASA_{Unbound, A} + SASA_{Unbound, B}) - SASA_{Complex}$.
-       * **Interface Size Classification**: BSA values $> 2,000\text{ Å}^2$ signify biologically relevant dimers; values $< 1,600\text{ Å}^2$ point to non-specific crystal packing.
+       * **Interface Size Classification**: BSA values $> 1,000\text{ Å}^2$ signify biologically relevant dimers; values $< 800\text{ Å}^2$ point to non-specific crystal packing.
        * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\Delta SASA > 0$) are highlighted.
     """)
 
@@ -277,34 +277,39 @@ with main_tab_analysis:
                     monomer_a_model = deepcopy(ch_a_obj)
                     monomer_b_model = deepcopy(ch_b_obj)
 
+                    # Execute SASA on monomeric states
                     sr.compute(monomer_a_model, level="R")
                     for res in monomer_a_model.get_residues():
-                        monomer_a_sasa[res.id[1]] = res.sasa if hasattr(res, 'sasa') else 0.0
+                        if res.id[0] == " ": # Exclude heteroatoms to ensure strict standard protein residue matching
+                            monomer_a_sasa[res.id[1]] = res.sasa if hasattr(res, 'sasa') else 0.0
 
                     sr.compute(monomer_b_model, level="R")
                     for res in monomer_b_model.get_residues():
-                        monomer_b_sasa[res.id[1]] = res.sasa if hasattr(res, 'sasa') else 0.0
+                        if res.id[0] == " ":
+                            monomer_b_sasa[res.id[1]] = res.sasa if hasattr(res, 'sasa') else 0.0
 
                     # Compute SASA for the complex state
                     sr.compute(selected_model, level="R")
                     for chain_obj in [ch_a_obj, ch_b_obj]:
                         for res in chain_obj.get_residues():
-                            complex_sasa[(chain_obj.id, res.id[1])] = res.sasa if hasattr(res, 'sasa') else 0.0
+                            if res.id[0] == " ":
+                                complex_sasa[(chain_obj.id, res.id[1])] = res.sasa if hasattr(res, 'sasa') else 0.0
 
-                    # Calculate overall Buried Surface Area (BSA)
+                    # Calculate overall Buried Surface Area (BSA) mathematically using exact matched residues
                     total_unbound_sasa_a = sum(monomer_a_sasa.values())
                     total_unbound_sasa_b = sum(monomer_b_sasa.values())
-                    total_complex_sasa = sum([complex_sasa.get((chain_obj.id, res.id[1]), 0.0) for chain_obj in [ch_a_obj, ch_b_obj] for res in chain_obj.get_residues() if res.id[0] == " "])
+                    total_complex_sasa = sum([complex_sasa.get((chain_id, res_id), 0.0) for (chain_id, res_id) in complex_sasa if chain_id in [chain_a, chain_b]])
 
-                    # Buried Surface Area (BSA)
+                    # Exact formula matching: BSA = (SASA_unbound_A + SASA_unbound_B) - SASA_complex
                     total_excluded_sasa = (total_unbound_sasa_a + total_unbound_sasa_b) - total_complex_sasa
 
-                    if total_excluded_sasa > 2000:
-                        interface_classification = "Biologically Relevant Dimer (BSA > 2000 Å²)"
-                    elif total_excluded_sasa < 1600:
-                        interface_classification = "Non-specific Crystal Packing (BSA < 1600 Å²)"
+                    # Match physical thresholds as per Materials & Methods docx
+                    if total_excluded_sasa > 1000:
+                        interface_classification = "Biologically Relevant Dimer (BSA > 1000 Å²)"
+                    elif total_excluded_sasa < 800:
+                        interface_classification = "Non-specific Crystal Packing (BSA < 800 Å²)"
                     else:
-                        interface_classification = "Intermediate Contact Region (1600 - 2000 Å²)"
+                        interface_classification = "Intermediate Contact Region (800 - 1000 Å²)"
 
                     # Prepare comprehensive list of all residues' SASA parameters
                     for chain_id, ch_obj, monomer_sasa in [(chain_a, ch_a_obj, monomer_a_sasa), (chain_b, ch_b_obj, monomer_b_sasa)]:
@@ -765,7 +770,7 @@ with main_tab_analysis:
                             img_buf.seek(0)
                             plt.close(fig)
 
-                            story.append(Image(img_buf, width=360, height=180)) 
+                            story.append(Image(img_buf, width=360, height=180))
                             story.append(Spacer(1, 15))
                         except Exception as ex_plot:
                             story.append(Paragraph(f"<i>* Note: Could not render interface contact plot: {ex_plot}</i>", normal_style))
