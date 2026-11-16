@@ -134,7 +134,7 @@ def get_amino_acid_statistics(all_unique_res):
     res_names_only = [res[:3].upper() for res in all_unique_res if len(res) >= 3]
     tot_unique = len(res_names_only)
 
-    # Individual amino acid stats - Fixed to include all 20 standard amino acids
+    # Individual amino acid stats
     counts_dict = {aa: 0 for aa in standard_20_amino_acids}
     for r in res_names_only:
         if r in counts_dict:
@@ -957,7 +957,7 @@ with main_tab_2d_viewer:
                 const nodesB = {nodes_b_json};
                 const links = {connections_json};
                 const showDist = {show_distance_val};
-                
+
                 const svgW = {svg_width};
                 const nodeH = {node_height};
                 const nodeW = {node_width};
@@ -1006,11 +1006,11 @@ with main_tab_2d_viewer:
                     if (posA && posB) {{
                         const midX = (posA.x + posB.x) / 2;
                         const midY = (posA.y + posB.y) / 2;
-                        
+
                         // Force distance formatting to exactly 2 decimal places
                         const distNum = parseFloat(link.dist);
                         const formattedDist = isNaN(distNum) ? link.dist : distNum.toFixed(2);
-                        
+
                         let labelHtml = '';
                         if (showDist) {{
                             labelHtml = `
@@ -1018,7 +1018,7 @@ with main_tab_2d_viewer:
                                 <text x="${{midX}}" y="${{midY + 3}}" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#374151">${{formattedDist}}\u212B</text>
                             `;
                         }}
-                        
+
                         linkagesLayer.innerHTML += `
                             <line x1="${{posA.x}}" y1="${{posA.y}}" x2="${{posB.x}}" y2="${{posB.y}}" stroke="#9CA3AF" stroke-width="1.8" stroke-dasharray="4,4" />
                             ${{labelHtml}}
@@ -1031,28 +1031,28 @@ with main_tab_2d_viewer:
                     try {{
                         const svgElement = document.getElementById('schematic_2d');
                         if (!svgElement) throw new Error("SVG element not found.");
-                        
+
                         const serializer = new XMLSerializer();
                         let svgString = serializer.serializeToString(svgElement);
-                        
+
                         // Convert SVG string to Base64 encoded Data URI
                         const svgBlob = new Blob([svgString], {{type: 'image/svg+xml;charset=utf-8'}});
                         const URL = window.URL || window.webkitURL || window;
                         const blobURL = URL.createObjectURL(svgBlob);
-                        
+
                         const image = new Image();
                         image.onload = function() {{
                             const canvas = document.createElement('canvas');
                             const scale = 2.0; // Export scaling factor for high-resolution PNG
                             canvas.width = svgElement.clientWidth * scale;
                             canvas.height = svgElement.clientHeight * scale;
-                            
+
                             const context = canvas.getContext('2d');
                             context.scale(scale, scale);
-                            
+
                             // Render image inside canvas
                             context.drawImage(image, 0, 0);
-                            
+
                             const pngDataUrl = canvas.toDataURL('image/png');
                             const downloadLink = document.createElement('a');
                             downloadLink.href = pngDataUrl;
@@ -1062,11 +1062,11 @@ with main_tab_2d_viewer:
                             document.body.removeChild(downloadLink);
                             URL.revokeObjectURL(blobURL);
                         }};
-                        
+
                         image.onerror = function(err) {{
                             alert("Export failed during processing: " + err);
                         }};
-                        
+
                         image.src = blobURL;
                     }} catch (e) {{
                         alert("Export failed: " + e.message);
