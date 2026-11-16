@@ -839,7 +839,7 @@ with main_tab_analysis:
                 res_b_str = f"{row['Residue B Name']}{row['Residue B ID']}"
                 try:
                     dist_val = float(row["Minimum Distance (\u212B)"])
-                    dist_formatted = f" {dist_val:.3f}"
+                    dist_formatted = f" {dist_val:.2f}"
                 except:
                     dist_formatted = str(row["Minimum Distance (\u212B)"])
 
@@ -893,6 +893,10 @@ with main_tab_2d_viewer:
                 dist_val = row["Minimum Distance (\u212B)"]
                 connections.append({"from": res_a, "to": res_b, "dist": dist_val})
 
+            # Interactive Toggle Checkbox to enable/disable distance labels on connecting lines in 2D schematic
+            show_distance_labels = st.checkbox("Display distance labels on schematic connections", value=True)
+            st.write("")
+
             # Generate dynamic JavaScript / SVG diagram to display side-by-side nodes with labels & dotted linkages
             svg_width = 800
             node_height = 35
@@ -905,6 +909,7 @@ with main_tab_2d_viewer:
             connections_json = json.dumps(connections)
             nodes_a_json = json.dumps(unique_nodes_a)
             nodes_b_json = json.dumps(unique_nodes_b)
+            show_distance_val = "true" if show_distance_labels else "false"
 
             schematic_html = f"""
             <div style="width:100%; overflow-x:auto;">
@@ -951,6 +956,7 @@ with main_tab_2d_viewer:
                 const nodesA = {nodes_a_json};
                 const nodesB = {nodes_b_json};
                 const links = {connections_json};
+                const showDist = {show_distance_val};
                 
                 const svgW = {svg_width};
                 const nodeH = {node_height};
@@ -992,7 +998,7 @@ with main_tab_2d_viewer:
                     `;
                 }});
 
-                // Render Connecting Inter-chain Dotted Lines with Distance labels
+                // Render Connecting Inter-chain Dotted Lines with Distance labels (limited to two decimal places)
                 links.forEach(link => {{
                     const posA = nodesAPos[link.from];
                     const posB = nodesBPos[link.to];
@@ -1001,10 +1007,21 @@ with main_tab_2d_viewer:
                         const midX = (posA.x + posB.x) / 2;
                         const midY = (posA.y + posB.y) / 2;
                         
+                        // Force distance formatting to exactly 2 decimal places
+                        const distNum = parseFloat(link.dist);
+                        const formattedDist = isNaN(distNum) ? link.dist : distNum.toFixed(2);
+                        
+                        let labelHtml = '';
+                        if (showDist) {{
+                            labelHtml = `
+                                <rect x="${{midX - 22}}" y="${{midY - 9}}" width="44" height="16" rx="4" fill="#F3F4F6" stroke="#D1D5DB" stroke-width="1" />
+                                <text x="${{midX}}" y="${{midY + 3}}" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#374151">${{formattedDist}}\u212B</text>
+                            `;
+                        }}
+                        
                         linkagesLayer.innerHTML += `
                             <line x1="${{posA.x}}" y1="${{posA.y}}" x2="${{posB.x}}" y2="${{posB.y}}" stroke="#9CA3AF" stroke-width="1.8" stroke-dasharray="4,4" />
-                            <rect x="${{midX - 22}}" y="${{midY - 9}}" width="44" height="16" rx="4" fill="#F3F4F6" stroke="#D1D5DB" stroke-width="1" />
-                            <text x="${{midX}}" y="${{midY + 3}}" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#374151">${{link.dist}}\u212B</text>
+                            ${{labelHtml}}
                         `;
                     }}
                 }});
