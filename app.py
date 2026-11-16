@@ -932,6 +932,21 @@ with main_tab_2d_viewer:
                 </svg>
             </div>
 
+            <div style="margin: 15px auto; display: flex; justify-content: center; gap: 10px;">
+                <button id="download_2d_png_btn" style="
+                    background-color: #10B981;
+                    color: white;
+                    border: none;
+                    padding: 8px 18px;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    font-family: sans-serif;
+                    cursor: pointer;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    transition: background 0.2s;
+                ">\u2295 Save 2D Schematic as PNG Image</button>
+            </div>
+
             <script>
                 const nodesA = {nodes_a_json};
                 const nodesB = {nodes_b_json};
@@ -993,6 +1008,53 @@ with main_tab_2d_viewer:
                         `;
                     }}
                 }});
+
+                // PNG Exporter Engine using canvas parsing
+                document.getElementById('download_2d_png_btn').addEventListener('click', function() {{
+                    try {{
+                        const svgElement = document.getElementById('schematic_2d');
+                        if (!svgElement) throw new Error("SVG element not found.");
+                        
+                        const serializer = new XMLSerializer();
+                        let svgString = serializer.serializeToString(svgElement);
+                        
+                        // Convert SVG string to Base64 encoded Data URI
+                        const svgBlob = new Blob([svgString], {{type: 'image/svg+xml;charset=utf-8'}});
+                        const URL = window.URL || window.webkitURL || window;
+                        const blobURL = URL.createObjectURL(svgBlob);
+                        
+                        const image = new Image();
+                        image.onload = function() {{
+                            const canvas = document.createElement('canvas');
+                            const scale = 2.0; // Export scaling factor for high-resolution PNG
+                            canvas.width = svgElement.clientWidth * scale;
+                            canvas.height = svgElement.clientHeight * scale;
+                            
+                            const context = canvas.getContext('2d');
+                            context.scale(scale, scale);
+                            
+                            // Render image inside canvas
+                            context.drawImage(image, 0, 0);
+                            
+                            const pngDataUrl = canvas.toDataURL('image/png');
+                            const downloadLink = document.createElement('a');
+                            downloadLink.href = pngDataUrl;
+                            downloadLink.download = 'protein_interface_2d_schematic.png';
+                            document.body.appendChild(downloadLink);
+                            downloadLink.click();
+                            document.body.removeChild(downloadLink);
+                            URL.revokeObjectURL(blobURL);
+                        }};
+                        
+                        image.onerror = function(err) {{
+                            alert("Export failed during processing: " + err);
+                        }};
+                        
+                        image.src = blobURL;
+                    }} catch (e) {{
+                        alert("Export failed: " + e.message);
+                    }}
+                }});
             </script>
             """
-            components.html(schematic_html, height=total_height + 40)
+            components.html(schematic_html, height=total_height + 100)
