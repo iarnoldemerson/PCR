@@ -87,13 +87,13 @@ try:
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         </style>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True) 
 except Exception:
     pass
 
 # Display Highlighted Title
 try:
-    st.markdown("<div class=\"main-title\">⚕️ Protein Contact Residue Server</div>", unsafe_allow_html=True)
+    st.markdown("<div class=\"main-title\">⚕  Protein Contact Residue Server</div>", unsafe_allow_html=True)
 except Exception:
     pass
 
@@ -103,13 +103,13 @@ The Protein Contact Residue Server is an advanced interactive web tool for struc
 </div>""", unsafe_allow_html=True)
 
 # Display attached user image
-image_path = "/content/Screenshot 2026-11-11 at 12.03.52 PM.png"
+image_path = "/content/Screenshot 2026-11-11 at 12.03.52…PM.png"
 if os.path.exists(image_path):
     st.image(image_path, use_container_width=True, caption="Protein Contact Residue Server Overview")
 
 # Create Main Tabs
 main_tab_analysis, main_tab_help = st.tabs([
-    "🔬 Interface Analysis & 3D Viewer",
+    "  Interface Analysis & 3D Viewer",
     "❓ Help Guide"
 ])
 
@@ -122,19 +122,27 @@ amino_acid_groups = {
     'Aromatic': ['PHE', 'TYR', 'TRP']
 }
 
+# Standard list of the 20 canonical amino acids
+standard_20_amino_acids = [
+    'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE',
+    'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL'
+]
+
 def get_amino_acid_statistics(all_unique_res):
     """Calculates residue frequencies, group distributions, and prepares dataframes for analysis."""
     res_names_only = [res[:3].upper() for res in all_unique_res if len(res) >= 3]
     tot_unique = len(res_names_only)
 
-    if tot_unique == 0:
-        return None, None, None
+    # Individual amino acid stats - Fixed to include all 20 standard amino acids
+    counts_dict = {aa: 0 for aa in standard_20_amino_acids}
+    for r in res_names_only:
+        if r in counts_dict:
+            counts_dict[r] += 1
 
-    # Individual amino acid stats
-    aa_counts = pd.Series(res_names_only).value_counts().sort_index()
+    aa_counts = pd.Series(counts_dict).sort_index()
     df_aa_stats = pd.DataFrame({
         "Frequency": aa_counts,
-        "Percentage (%)": (aa_counts / tot_unique * 100).round(2)
+        "Percentage (%)": ((aa_counts / tot_unique * 100) if tot_unique > 0 else 0.0).round(2)
     })
 
     # Chemical groups mapping
@@ -146,7 +154,7 @@ def get_amino_acid_statistics(all_unique_res):
     df_groups = pd.DataFrame({
         "Category": list(group_counts.keys()),
         "Count": list(group_counts.values()),
-        "Percentage (%)": [round((c / tot_unique) * 100, 2) for c in group_counts.values()]
+        "Percentage (%)": [round((c / tot_unique) * 100, 2) if tot_unique > 0 else 0.0 for c in group_counts.values()]
     })
     df_groups.index = df_groups.index + 1
 
@@ -208,23 +216,23 @@ else:
 
 # Main Tab 2: Help Guide
 with main_tab_help:
-    st.markdown("### 📘 Structural Interface Analysis Guide")
+    st.markdown("###   Structural Interface Analysis Guide")
     st.write("Welcome to the reference guide and operating manual for this application. Below are instructions for executing contact calculations, interpreting SASA properties, and downloading reports.")
 
-    st.markdown("#### 🚀 Step-by-Step Instructions")
+    st.markdown("####   Step-by-Step Instructions")
     st.markdown("""
     1. **Load Your Protein Structure**:
        * Select either **Fetch from PDB (RCSB)** or choose **Upload PDB File**.
     2. **Configure Your Chains and Threshold**:
        * Select **Chain 1** and **Chain 2** from the dropdowns.
-       * Set your desired **Distance Cut-off** (4.0 Å, 5.0 Å, or 6.0 Å).
+       * Set your desired **Distance Cut-off** (4.0  , 5.0  , or 6.0  ).
     3. **Evaluate Surface Energy & Buried Surface Area (BSA)**:
        * **Buried Surface Area (BSA) Calculation**: calculated as $BSA = (SASA_{Unbound, A} + SASA_{Unbound, B}) - SASA_{Complex}$.
-       * **Interface Size Classification**: BSA values $> 1,000\\text{ Å}^2$ signify biologically relevant dimers; values $< 800\\text{ Å}^2$ point to non-specific crystal packing.
-       * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\\Delta SASA > 0$) are highlighted.
+       * **Interface Size Classification**: BSA values $> 1,000\text{  }^2$ signify biologically relevant dimers; values $< 800\text{  }^2$ point to non-specific crystal packing.
+       * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\Delta SASA > 0$) are highlighted.
     """)
 
-    st.markdown("#### 🎨 3D Filter Display Controls")
+    st.markdown("####   3D Filter Display Controls")
     st.markdown("""
     The **3D Filter Display** panel allows you to customize and focus on specific structural elements inside the 3D canvas:
     * **Enable Residue Labels**: Toggles text annotations indicating residue name and sequence position on top of contacting side-chains.
@@ -234,10 +242,10 @@ with main_tab_help:
     * **Custom Chain Coloring & Backgrounds**: Alters the main ribbon styles and viewport background dynamically to prepare beautiful figures for publication.
     """)
 
-    st.markdown("#### 📊 Understanding the Analysis Tables")
+    st.markdown("####   Understanding the Analysis Tables")
     st.markdown("""
     ##### **i) Unique Interface Residues & Property Analysis**
-    This dataset isolates individual amino acids that lose solvent accessibility ($\\Delta SASA > 0$) upon complex formation. This panel shows:
+    This dataset isolates individual amino acids that lose solvent accessibility ($\Delta SASA > 0$) upon complex formation. This panel shows:
     * **Unbound and Bound SASA**: Quantifies the transition from completely isolated monomers to the fully bound biological interface.
     * **Physicochemical Group Frequencies**: Automatically categorizes residues into operational categories (*Hydrophobic*, *Polar*, *Aromatic*, *Positively charged*, and *Negatively charged*) to identify the major electrostatic or hydrophobic drivers stabilizing the complex.
 
@@ -265,9 +273,9 @@ with main_tab_analysis:
             chain_b = None
 
         cutoff_options = {
-            4.0: "4 Å (Identify close contacts)",
-            5.0: "5 Å (Primary contact definition)",
-            6.0: "6 Å (Identify broader interfaces)"
+            4.0: "4   (Identify close contacts)",
+            5.0: "5   (Primary contact definition)",
+            6.0: "6   (Identify broader interfaces)"
         }
 
         selected_cutoff = st.sidebar.selectbox(
@@ -329,11 +337,11 @@ with main_tab_analysis:
 
                     # Match physical thresholds as per Materials & Methods docx
                     if total_excluded_sasa > 1000:
-                        interface_classification = "Biologically Relevant Dimer (BSA > 1000 Å²)"
+                        interface_classification = "Biologically Relevant Dimer (BSA > 1000  )"
                     elif total_excluded_sasa < 800:
-                        interface_classification = "Non-specific Crystal Packing (BSA < 800 Å²)"
+                        interface_classification = "Non-specific Crystal Packing (BSA < 800  )"
                     else:
-                        interface_classification = "Intermediate Contact Region (800 - 1000 Å²)"
+                        interface_classification = "Intermediate Contact Region (800 - 1000  )"
 
                     # Prepare comprehensive list of all residues' SASA parameters
                     for chain_id, ch_obj, monomer_sasa in [(chain_a, ch_a_obj, monomer_a_sasa), (chain_b, ch_b_obj, monomer_b_sasa)]:
@@ -348,9 +356,9 @@ with main_tab_analysis:
                             all_residue_sasa_records.append({
                                 "Chain": chain_id,
                                 "Residue": res_name_full,
-                                "Unbound SASA (Å²)": round(unbound_val, 2),
-                                "Bound SASA (Å²)": round(bound_val, 2),
-                                "ΔSASA (Å²)": round(delta_sasa, 2)
+                                "Unbound SASA ( )": round(unbound_val, 2),
+                                "Bound SASA ( )": round(bound_val, 2),
+                                "ΔSASA ( )": round(delta_sasa, 2)
                             })
 
                     sasa_data_available = True
@@ -384,7 +392,7 @@ with main_tab_analysis:
                                         "Atom A": atom_a.get_name(),
                                         "Residue B": f"{res_b.get_resname()}{res_b.id[1]}",
                                         "Atom B": atom_b.get_name(),
-                                        "Distance (Å)": round(dist, 3)
+                                        "Distance ( )": round(dist, 3)
                                     })
                                     if dist < min_dist_for_pair:
                                         min_dist_for_pair = dist
@@ -400,7 +408,7 @@ with main_tab_analysis:
                                 "Residue A ID": res_a.id[1],
                                 "Residue B Name": res_b.get_resname(),
                                 "Residue B ID": res_b.id[1],
-                                "Minimum Distance (Å)": round(min_dist_for_pair, 3),
+                                "Minimum Distance ( )": round(min_dist_for_pair, 3),
                                 "Closest Atoms (A-B)": f"{(closest_atoms[0] or '')}-{(closest_atoms[1] or '')}"
                             }
                             if visual_atom_pair is not None:
@@ -419,7 +427,7 @@ with main_tab_analysis:
                 df_atoms = pd.DataFrame(atom_contacts)
 
                 # Create DataFrame for Unique Interface Residues and include ΔSASA values
-                df_interface_all_data = [rec for rec in all_residue_sasa_records if rec["ΔSASA (Å²)"] > 1e-4]
+                df_interface_all_data = [rec for rec in all_residue_sasa_records if rec["ΔSASA ( )"] > 1e-4]
                 df_interface_all = pd.DataFrame(df_interface_all_data)
 
                 # Adjust DataFrame Indexes to be 1-based
@@ -477,7 +485,7 @@ with main_tab_analysis:
                     chain_b_color = color_choices[chain_b_color_name]
 
                 with col_visualizer:
-                    st.subheader(f"🗾 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
+                    st.subheader(f"░░ 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
                     st.write("Interactive 3D representation showing contacting residues linked together.")
 
                     if pdb_raw_data:
@@ -520,9 +528,9 @@ with main_tab_analysis:
                                     """
 
                             py3dmol_html = f"""
-                            <div id=\"3dmol_canvas\" style=\"width: 100%; height: 500px; position: relative\"></div>
-                            <div style=\"margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;\">
-                                <button id=\"reset_view_btn\" style=\"
+                            <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative"></div>
+                            <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
+                                <button id="reset_view_btn" style="
                                     background-color: #6B7280;
                                     color: white;
                                     border: none;
@@ -531,8 +539,8 @@ with main_tab_analysis:
                                     font-weight: 600;
                                     cursor: pointer;
                                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                \">🔄 Reset 3D View</button>
-                                <button id=\"download_png_btn\" style=\"
+                                ">↖ Reset 3D View</button>
+                                <button id="download_png_btn" style="
                                     background-color: #2563EB;
                                     color: white;
                                     border: none;
@@ -541,9 +549,9 @@ with main_tab_analysis:
                                     font-weight: 600;
                                     cursor: pointer;
                                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                \">📸 Save 3D View as PNG Image</button>
+                                ">⊕ Save 3D View as PNG Image</button>
                             </div>
-                            <script src=\"https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js\"\></script>
+                            <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
                             <script>
                                 var element = document.getElementById('3dmol_canvas');
                                 var config = {{ backgroundColor: '{bg_color_option}' }};
@@ -569,7 +577,7 @@ with main_tab_analysis:
                                 document.getElementById('download_png_btn').addEventListener('click', function() {{
                                     try {{
                                         var oldCanvas = document.getElementsByTagName('canvas')[0];
-                                        if (!oldCanvas) throw new Error(\"Canvas element not found.\");
+                                        if (!oldCanvas) throw new Error("Canvas element not found.");
 
                                         var scaleFactor = 3;
                                         var tempCanvas = document.createElement('canvas');
@@ -596,7 +604,7 @@ with main_tab_analysis:
                             st.error(f"Could not render 3D structural model: {e}")
 
                 # --- Inter-chain Contacts Results Table Header ---
-                st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
+                st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff}  ")
 
                 col_m1, col_m2, col_m3, col_m4 = st.columns(4)
                 with col_m1:
@@ -605,11 +613,11 @@ with main_tab_analysis:
                 with col_m2:
                     st.metric("Residue–Residue Pairs", len(df_pairs))
                 with col_m3:
-                    st.metric("Buried Surface Area (BSA)", f"{total_excluded_sasa:.1f} Å²")
+                    st.metric("Buried Surface Area (BSA)", f"{total_excluded_sasa:.1f}  ")
                 with col_m4:
                     st.metric("Interface Classification", interface_classification.split(" (")[0])
 
-                st.info(f"**Buried Surface Area Metric Summary**: The Buried Surface Area (BSA) across the interface is **{total_excluded_sasa:.2f} Å²**. This classifies this interaction as: **{interface_classification}**.")
+                st.info(f"**Buried Surface Area Metric Summary**: The Buried Surface Area (BSA) across the interface is **{total_excluded_sasa:.2f}  **. This classifies this interaction as: **{interface_classification}**.")
 
                 # Download BSA metrics CSV containing residue-level SASA values across both chains
                 if all_residue_sasa_records:
@@ -617,7 +625,7 @@ with main_tab_analysis:
                     df_bsa_export.index = df_bsa_export.index + 1
                     csv_bsa_metrics = df_bsa_export.to_csv(index=True).encode("utf-8")
                     st.download_button(
-                        label="📥 Download BSA Metrics & Residue-level SASA CSV",
+                        label="⌁ Download BSA Metrics & Residue-level SASA CSV",
                         data=csv_bsa_metrics,
                         file_name=f"bsa_residue_sasa_metrics_{chain_a}_{chain_b}.csv",
                         mime="text/csv"
@@ -625,9 +633,9 @@ with main_tab_analysis:
 
                 if not df_pairs.empty:
                     tab1, tab2, tab3 = st.tabs([
-                        "🧬 Unique Interface Residues & Property Analysis",
-                        "🔗 Residue-Residue Pairs",
-                        "🔍 Detailed Atom-Atom Contacts"
+                        "  Unique Interface Residues & Property Analysis",
+                        "  Residue-Residue Pairs",
+                        "  Detailed Atom-Atom Contacts"
                     ])
 
                     with tab1:
@@ -706,7 +714,7 @@ with main_tab_analysis:
 
                     # PDF Generation Export Section
                     st.markdown("---")
-                    st.subheader("📥 Export Report as PDF")
+                    st.subheader("⌁ Export Report as PDF")
                     st.write("Generate a detailed, formatted PDF summary report.")
 
                     pdf_buffer = io.BytesIO()
@@ -734,8 +742,8 @@ with main_tab_analysis:
                     story.append(Paragraph("Protein Contact Residue Server Analysis Report", title_style))
                     story.append(Paragraph(f"<b>Structure Target:</b> {pdb_id.upper()}", normal_style))
                     story.append(Paragraph(f"<b>Interface Chains:</b> Chain {chain_a} & Chain {chain_b}", normal_style))
-                    story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} Å", normal_style))
-                    story.append(Paragraph(f"<b>Buried Surface Area (BSA):</b> {total_excluded_sasa:.2f} Å² ({interface_classification})", normal_style))
+                    story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff}  ", normal_style))
+                    story.append(Paragraph(f"<b>Buried Surface Area (BSA):</b> {total_excluded_sasa:.2f}   ({interface_classification})", normal_style))
                     story.append(Spacer(1, 15))
 
                     # Metrics Section
@@ -745,7 +753,7 @@ with main_tab_analysis:
                         ["Total Unique Interface Residues (ΔSASA > 0)", str(total_unique_res)],
                         ["Residue-Residue Pairs", str(len(df_pairs))],
                         ["Atom-Atom Contacts", str(len(df_atoms))],
-                        ["Buried Surface Area (BSA)", f"{total_excluded_sasa:.2f} Å²"]
+                        ["Buried Surface Area (BSA)", f"{total_excluded_sasa:.2f}  "]
                     ]
                     t_metrics = Table(metrics_table_data, colWidths=[250, 100])
                     t_metrics.setStyle(TableStyle([
@@ -777,14 +785,14 @@ with main_tab_analysis:
                         story.append(Spacer(1, 15))
 
                     # Distance Distribution Plot Section
-                    if not df_pairs.empty and "Minimum Distance (Å)" in df_pairs.columns:
+                    if not df_pairs.empty and "Minimum Distance ( )" in df_pairs.columns:
                         story.append(Paragraph("3. Interface Contact Distance Summary Plot", section_style))
                         try:
                             fig, ax = plt.subplots(figsize=(6, 3))
-                            distances = df_pairs["Minimum Distance (Å)"].dropna().astype(float)
+                            distances = df_pairs["Minimum Distance ( )"].dropna().astype(float)
                             ax.hist(distances, bins=10, color="#3B82F6", edgecolor="black", alpha=0.8)
                             ax.set_title("Distribution of Minimum Residue-Residue Distances", fontsize=10, fontweight="bold", color="#1E3A8A")
-                            ax.set_xlabel("Distance (Å)", fontsize=8)
+                            ax.set_xlabel("Distance ( )", fontsize=8)
                             ax.set_ylabel("Frequency", fontsize=8)
                             ax.grid(True, linestyle="--", alpha=0.5)
                             plt.tight_layout()
@@ -802,17 +810,17 @@ with main_tab_analysis:
 
                     # 4. Residue-Residue Contacts Table Section inside PDF
                     story.append(Paragraph("4. Residue-Residue Contact Pairs Table", section_style))
-                    pairs_table_data = [["S.No", "ResA", "ResB", "Distance (Å)"]]
+                    pairs_table_data = [["S.No", "ResA", "ResB", "Distance ( )"]]
 
                     max_rows_to_render = min(100, len(df_pairs))
                     for idx, row in df_pairs.head(max_rows_to_render).iterrows():
                         res_a_str = f"{row['Residue A Name']}{row['Residue A ID']}"
                         res_b_str = f"{row['Residue B Name']}{row['Residue B ID']}"
                         try:
-                            dist_val = float(row["Minimum Distance (Å)"])
+                            dist_val = float(row["Minimum Distance ( )"])
                             dist_formatted = f" {dist_val:.3f}"
                         except:
-                            dist_formatted = str(row["Minimum Distance (Å)"])
+                            dist_formatted = str(row["Minimum Distance ( )"])
 
                         pairs_table_data.append([
                             str(idx),
@@ -841,10 +849,10 @@ with main_tab_analysis:
                     doc.build(story)
                     pdf_data = pdf_buffer.getvalue()
                     st.download_button(
-                        label="📥 Download PDF Report",
+                        label="⌁ Download PDF Report",
                         data=pdf_data,
                         file_name=f"protein_contact_report_{pdb_id}_{chain_a}_{chain_b}.pdf",
                         mime="application/pdf"
                     )
     else:
-        st.info("👈 Please load a structure from the sidebar to begin.")
+        st.info("☐ Please load a structure from the sidebar to begin.")
