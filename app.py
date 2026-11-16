@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -106,9 +107,10 @@ image_path = "/content/Screenshot 2026-11-11 at 12.03.52\u2026PM.png"
 if os.path.exists(image_path):
     st.image(image_path, use_container_width=True, caption="Protein Contact Residue Server Overview")
 
-# Create Main Tabs
-main_tab_analysis, main_tab_help = st.tabs([
+# Create Main Tabs including the requested 2D Viewer Tab
+main_tab_analysis, main_tab_2d_viewer, main_tab_help = st.tabs([
     "\u2004 Interface Analysis & 3D Viewer",
+    "\u25A6 Interface Analysis & 2D Viewer",
     "\u2753 Help Guide"
 ])
 
@@ -213,7 +215,7 @@ else:
         except Exception as e:
             st.sidebar.error(f"Error parsing uploaded PDB file: {e}")
 
-# Main Tab 2: Help Guide
+# Main Tab 3: Help Guide
 with main_tab_help:
     st.markdown("### \u2004 Structural Interface Analysis Guide")
     st.write("Welcome to the reference guide and operating manual for this application. Below are instructions for executing contact calculations, interpreting SASA properties, and downloading reports.")
@@ -231,7 +233,7 @@ with main_tab_help:
        * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\Delta SASA > 0$) are highlighted.
     """)
 
-    st.markdown("#### \u2004 3D Filter Display Controls")
+    st.markdown("#### \u2004 3D/2D Filter Display Controls")
     st.markdown("""
     The **3D Filter Display** panel allows you to customize and focus on specific structural elements inside the 3D canvas:
     * **Enable Residue Labels**: Toggles text annotations indicating residue name and sequence position on top of contacting side-chains.
@@ -255,603 +257,742 @@ with main_tab_help:
     A fine-grained, high-resolution atom-level list tracking every individual heavy-atom pair (e.g., nitrogen, oxygen, carbon) that falls beneath the configured cut-off boundary. Use this table to map salt bridges, specific hydrogen bonds, and close atomic clashes.
     """)
 
-# Main Tab 1: Primary Analysis Section
-with main_tab_analysis:
-    if structure:
-        models = list(structure.get_models())
-        selected_model = models[0]
-        all_chains = [chain.id for chain in selected_model.get_chains()]
+# Initialize analysis containers to share analysis output across both tabs
+analysis_results = {}
 
-        st.sidebar.markdown("<div class=\"sidebar-header-highlight\">2. Parameters</div>", unsafe_allow_html=True)
-        if len(all_chains) >= 2:
-            chain_a = st.sidebar.selectbox("Select Chain 1:", all_chains, index=0)
-            chain_b = st.sidebar.selectbox("Select Chain 2:", all_chains, index=min(1, len(all_chains)-1))
-        else:
-            st.sidebar.warning("The loaded structure has fewer than 2 chains.")
-            chain_a = all_chains[0] if all_chains else None
-            chain_b = None
+if structure:
+    models = list(structure.get_models())
+    selected_model = models[0]
+    all_chains = [chain.id for chain in selected_model.get_chains()]
 
-        cutoff_options = {
-            4.0: "4 \u212B (Identify close contacts)",
-            5.0: "5 \u212B (Primary contact definition)",
-            6.0: "6 \u212B (Identify broader interfaces)"
+    st.sidebar.markdown("<div class=\"sidebar-header-highlight\">2. Parameters</div>", unsafe_allow_html=True)
+    if len(all_chains) >= 2:
+        chain_a = st.sidebar.selectbox("Select Chain 1:", all_chains, index=0)
+        chain_b = st.sidebar.selectbox("Select Chain 2:", all_chains, index=min(1, len(all_chains)-1))
+    else:
+        st.sidebar.warning("The loaded structure has fewer than 2 chains.")
+        chain_a = all_chains[0] if all_chains else None
+        chain_b = None
+
+    cutoff_options = {
+        4.0: "4 \u212B (Identify close contacts)",
+        5.0: "5 \u212B (Primary contact definition)",
+        6.0: "6 \u212B (Identify broader interfaces)"
+    }
+
+    selected_cutoff = st.sidebar.selectbox(
+        "Select Distance Cut-off:",
+        options=list(cutoff_options.keys()),
+        format_func=lambda x: cutoff_options[x],
+        index=1
+    )
+
+    if chain_a and chain_b and chain_a != chain_b:
+        ch_a_obj = selected_model[chain_a]
+        ch_b_obj = selected_model[chain_b]
+
+        sasa_data_available = False
+        monomer_a_sasa = {}
+        monomer_b_sasa = {}
+        complex_sasa = {}
+        total_excluded_sasa = 0.0
+        interface_classification = "N/A"
+        all_residue_sasa_records = []
+
+        try:
+            sr = ShrakeRupley()
+            from copy import deepcopy
+            monomer_a_model = deepcopy(ch_a_obj)
+            monomer_b_model = deepcopy(ch_b_obj)
+
+            sr.compute(monomer_a_model, level="R")
+            for res in monomer_a_model.get_residues():
+                if res.id[0] == " ":
+                    monomer_a_sasa[res.id[1]] = res.sasa if hasattr(res, 'sasa') else 0.0
+
+            sr.compute(monomer_b_model, level="R")
+            for res in monomer_b_model.get_residues():
+                if res.id[0] == " ":
+                    monomer_b_sasa[res.id[1]] = res.sasa if hasattr(res, 'sasa') else 0.0
+
+            sr.compute(selected_model, level="R")
+            for chain_obj in [ch_a_obj, ch_b_obj]:
+                for res in chain_obj.get_residues():
+                    if res.id[0] == " ":
+                        complex_sasa[(chain_obj.id, res.id[1])] = res.sasa if hasattr(res, 'sasa') else 0.0
+
+            total_unbound_sasa_a = sum(monomer_a_sasa.values())
+            total_unbound_sasa_b = sum(monomer_b_sasa.values())
+            total_complex_sasa = sum([complex_sasa.get((chain_id, res_id), 0.0) for (chain_id, res_id) in complex_sasa if chain_id in [chain_a, chain_b]])
+
+            total_excluded_sasa = (total_unbound_sasa_a + total_unbound_sasa_b) - total_complex_sasa
+
+            if total_excluded_sasa > 1000:
+                interface_classification = "Biologically Relevant Dimer (BSA > 1000 \u212B\u00B2)"
+            elif total_excluded_sasa < 800:
+                interface_classification = "Non-specific Crystal Packing (BSA < 800 \u212B\u00B2)"
+            else:
+                interface_classification = "Intermediate Contact Region (800 - 1000 \u212B\u00B2)"
+
+            for chain_id, ch_obj, monomer_sasa in [(chain_a, ch_a_obj, monomer_a_sasa), (chain_b, ch_b_obj, monomer_b_sasa)]:
+                for res in ch_obj.get_residues():
+                    if res.id[0] != " ":
+                        continue
+                    res_id_val = res.id[1]
+                    res_name_full = f"{res.get_resname()}{res_id_val}"
+                    unbound_val = monomer_sasa.get(res_id_val, 0.0)
+                    bound_val = complex_sasa.get((chain_id, res_id_val), 0.0)
+                    delta_sasa = max(0.0, unbound_val - bound_val)
+                    all_residue_sasa_records.append({
+                        "Chain": chain_id,
+                        "Residue": res_name_full,
+                        "Unbound SASA (\u212B\u00B2)": round(unbound_val, 2),
+                        "Bound SASA (\u212B\u00B2)": round(bound_val, 2),
+                        "\u0394SASA (\u212B\u00B2)": round(delta_sasa, 2)
+                    })
+            sasa_data_available = True
+        except Exception as sasa_err:
+            st.sidebar.error(f"SASA Calculation Error: {sasa_err}")
+
+        atom_contacts = []
+        unique_pairs = {}
+        interface_residues_a = set()
+        interface_residues_b = set()
+        contact_links_visualization = []
+
+        for res_a in ch_a_obj.get_residues():
+            if res_a.id[0] != " ":
+                continue
+            for res_b in ch_b_obj.get_residues():
+                if res_b.id[0] != " ":
+                    continue
+
+                min_dist_for_pair = float("inf")
+                closest_atoms = (None, None)
+                pair_key = (res_a.get_resname(), res_a.id[1], res_b.get_resname(), res_b.id[1])
+                visual_atom_pair = None
+
+                for atom_a in res_a.get_atoms():
+                    for atom_b in res_b.get_atoms():
+                        dist = atom_a - atom_b
+                        if dist <= selected_cutoff:
+                            atom_contacts.append({
+                                "Residue A": f"{res_a.get_resname()}{res_a.id[1]}",
+                                "Atom A": atom_a.get_name(),
+                                "Residue B": f"{res_b.get_resname()}{res_b.id[1]}",
+                                "Atom B": atom_b.get_name(),
+                                "Distance (\u212B)": round(dist, 3)
+                            })
+                            if dist < min_dist_for_pair:
+                                min_dist_for_pair = dist
+                                closest_atoms = (atom_a.get_name(), atom_b.get_name())
+                                visual_atom_pair = (atom_a.get_coord(), atom_b.get_coord())
+
+                            interface_residues_a.add(f"{res_a.get_resname()}{res_a.id[1]}")
+                            interface_residues_b.add(f"{res_b.get_resname()}{res_b.id[1]}")
+
+                if min_dist_for_pair <= selected_cutoff:
+                    unique_pairs[pair_key] = {
+                        "Residue A Name": res_a.get_resname(),
+                        "Residue A ID": res_a.id[1],
+                        "Residue B Name": res_b.get_resname(),
+                        "Residue B ID": res_b.id[1],
+                        "Minimum Distance (\u212B)": round(min_dist_for_pair, 3),
+                        "Closest Atoms (A-B)": f"{(closest_atoms[0] or '')}-{(closest_atoms[1] or '')}"
+                    }
+                    if visual_atom_pair is not None:
+                        contact_links_visualization.append({
+                            "pair_label": f"{res_a.get_resname()}{res_a.id[1]} - {res_b.get_resname()}{res_b.id[1]}",
+                            "coord_a": visual_atom_pair[0],
+                            "coord_b": visual_atom_pair[1],
+                            "label_a": f" {res_a.get_resname()}{res_a.id[1]}",
+                            "label_b": f" {res_b.get_resname()}{res_b.id[1]}",
+                            "spec_a": { "chain": chain_a, "resi": res_a.id[1] },
+                            "spec_b": { "chain": chain_b, "resi": res_b.id[1] }
+                        })
+
+        df_pairs = pd.DataFrame(list(unique_pairs.values()))
+        df_atoms = pd.DataFrame(atom_contacts)
+        df_interface_all_data = [rec for rec in all_residue_sasa_records if rec["\u0394SASA (\u212B\u00B2)"] > 1e-4]
+        df_interface_all = pd.DataFrame(df_interface_all_data)
+
+        if not df_pairs.empty:
+            df_pairs.index = df_pairs.index + 1
+        if not df_atoms.empty:
+            df_atoms.index = df_atoms.index + 1
+        if not df_interface_all.empty:
+            df_interface_all.index = df_interface_all.index + 1
+
+        # Populate shared results map
+        analysis_results = {
+            "df_pairs": df_pairs,
+            "df_atoms": df_atoms,
+            "df_interface_all": df_interface_all,
+            "total_excluded_sasa": total_excluded_sasa,
+            "interface_classification": interface_classification,
+            "all_residue_sasa_records": all_residue_sasa_records,
+            "contact_links_visualization": contact_links_visualization,
+            "total_unique_res": len(df_interface_all),
+            "chain_a": chain_a,
+            "chain_b": chain_b,
+            "selected_cutoff": selected_cutoff,
+            "pdb_raw_data": pdb_raw_data,
+            "pdb_id": pdb_id
         }
 
-        selected_cutoff = st.sidebar.selectbox(
-            "Select Distance Cut-off:",
-            options=list(cutoff_options.keys()),
-            format_func=lambda x: cutoff_options[x],
-            index=1
-        )
-
-        if chain_a and chain_b:
-            if chain_a == chain_b:
-                st.warning("Please select two different chains for inter-chain contact analysis.")
-            else:
-                ch_a_obj = selected_model[chain_a]
-                ch_b_obj = selected_model[chain_b]
-
-                # Pre-calculate monomeric vs complex SASA values to discover \u0394SASA
-                sasa_data_available = False
-                monomer_a_sasa = {}
-                monomer_b_sasa = {}
-                complex_sasa = {}
-                total_excluded_sasa = 0.0
-                interface_classification = "N/A"
-                all_residue_sasa_records = []
-
-                try:
-                    sr = ShrakeRupley()
-
-                    # Clone chains for unbound monomeric SASA calculation to isolate individual environments
-                    from copy import deepcopy
-                    monomer_a_model = deepcopy(ch_a_obj)
-                    monomer_b_model = deepcopy(ch_b_obj)
-
-                    # Execute SASA on monomeric states
-                    sr.compute(monomer_a_model, level="R")
-                    for res in monomer_a_model.get_residues():
-                        if res.id[0] == " ": # Exclude heteroatoms to ensure strict standard protein residue matching
-                            monomer_a_sasa[res.id[1]] = res.sasa if hasattr(res, 'sasa') else 0.0
-
-                    sr.compute(monomer_b_model, level="R")
-                    for res in monomer_b_model.get_residues():
-                        if res.id[0] == " ":
-                            monomer_b_sasa[res.id[1]] = res.sasa if hasattr(res, 'sasa') else 0.0
-
-                    # Compute SASA for the complex state
-                    sr.compute(selected_model, level="R")
-                    for chain_obj in [ch_a_obj, ch_b_obj]:
-                        for res in chain_obj.get_residues():
-                            if res.id[0] == " ":
-                                complex_sasa[(chain_obj.id, res.id[1])] = res.sasa if hasattr(res, 'sasa') else 0.0
-
-                    # Calculate overall Buried Surface Area (BSA) mathematically using exact matched residues
-                    total_unbound_sasa_a = sum(monomer_a_sasa.values())
-                    total_unbound_sasa_b = sum(monomer_b_sasa.values())
-                    total_complex_sasa = sum([complex_sasa.get((chain_id, res_id), 0.0) for (chain_id, res_id) in complex_sasa if chain_id in [chain_a, chain_b]])
-
-                    # Exact formula matching: BSA = (SASA_unbound_A + SASA_unbound_B) - SASA_complex
-                    total_excluded_sasa = (total_unbound_sasa_a + total_unbound_sasa_b) - total_complex_sasa
-
-                    # Match physical thresholds as per Materials & Methods docx
-                    if total_excluded_sasa > 1000:
-                        interface_classification = "Biologically Relevant Dimer (BSA > 1000 \u212B\u00B2)"
-                    elif total_excluded_sasa < 800:
-                        interface_classification = "Non-specific Crystal Packing (BSA < 800 \u212B\u00B2)"
-                    else:
-                        interface_classification = "Intermediate Contact Region (800 - 1000 \u212B\u00B2)"
-
-                    # Prepare comprehensive list of all residues' SASA parameters
-                    for chain_id, ch_obj, monomer_sasa in [(chain_a, ch_a_obj, monomer_a_sasa), (chain_b, ch_b_obj, monomer_b_sasa)]:
-                        for res in ch_obj.get_residues():
-                            if res.id[0] != " ":
-                                continue
-                            res_id_val = res.id[1]
-                            res_name_full = f"{res.get_resname()}{res_id_val}"
-                            unbound_val = monomer_sasa.get(res_id_val, 0.0)
-                            bound_val = complex_sasa.get((chain_id, res_id_val), 0.0)
-                            delta_sasa = max(0.0, unbound_val - bound_val)
-                            all_residue_sasa_records.append({
-                                "Chain": chain_id,
-                                "Residue": res_name_full,
-                                "Unbound SASA (\u212B\u00B2)": round(unbound_val, 2),
-                                "Bound SASA (\u212B\u00B2)": round(bound_val, 2),
-                                "\u0394SASA (\u212B\u00B2)": round(delta_sasa, 2)
-                            })
-
-                    sasa_data_available = True
-                except Exception as sasa_err:
-                    st.sidebar.error(f"SASA Calculation Error: {sasa_err}")
-
-                atom_contacts = []
-                unique_pairs = {}
-                interface_residues_a = set()
-                interface_residues_b = set()
-                contact_links_visualization = []
-
-                for res_a in ch_a_obj.get_residues():
-                    if res_a.id[0] != " ":
-                        continue
-                    for res_b in ch_b_obj.get_residues():
-                        if res_b.id[0] != " ":
-                            continue
-
-                        min_dist_for_pair = float("inf")
-                        closest_atoms = (None, None)
-                        pair_key = (res_a.get_resname(), res_a.id[1], res_b.get_resname(), res_b.id[1])
-                        visual_atom_pair = None
-
-                        for atom_a in res_a.get_atoms():
-                            for atom_b in res_b.get_atoms():
-                                dist = atom_a - atom_b
-                                if dist <= selected_cutoff:
-                                    atom_contacts.append({
-                                        "Residue A": f"{res_a.get_resname()}{res_a.id[1]}",
-                                        "Atom A": atom_a.get_name(),
-                                        "Residue B": f"{res_b.get_resname()}{res_b.id[1]}",
-                                        "Atom B": atom_b.get_name(),
-                                        "Distance (\u212B)": round(dist, 3)
-                                    })
-                                    if dist < min_dist_for_pair:
-                                        min_dist_for_pair = dist
-                                        closest_atoms = (atom_a.get_name(), atom_b.get_name())
-                                        visual_atom_pair = (atom_a.get_coord(), atom_b.get_coord())
-
-                                    interface_residues_a.add(f"{res_a.get_resname()}{res_a.id[1]}")
-                                    interface_residues_b.add(f"{res_b.get_resname()}{res_b.id[1]}")
-
-                        if min_dist_for_pair <= selected_cutoff:
-                            unique_pairs[pair_key] = {
-                                "Residue A Name": res_a.get_resname(),
-                                "Residue A ID": res_a.id[1],
-                                "Residue B Name": res_b.get_resname(),
-                                "Residue B ID": res_b.id[1],
-                                "Minimum Distance (\u212B)": round(min_dist_for_pair, 3),
-                                "Closest Atoms (A-B)": f"{(closest_atoms[0] or '')}-{(closest_atoms[1] or '')}"
-                            }
-                            if visual_atom_pair is not None:
-                                contact_links_visualization.append({
-                                    "pair_label": f"{res_a.get_resname()}{res_a.id[1]} - {res_b.get_resname()}{res_b.id[1]}",
-                                    "coord_a": visual_atom_pair[0],
-                                    "coord_b": visual_atom_pair[1],
-                                    "label_a": f" {res_a.get_resname()}{res_a.id[1]}",
-                                    "label_b": f" {res_b.get_resname()}{res_b.id[1]}",
-                                    "spec_a": { "chain": chain_a, "resi": res_a.id[1] },
-                                    "spec_b": { "chain": chain_b, "resi": res_b.id[1] }
-                                })
-
-                # Convert results to lists/DataFrames
-                df_pairs = pd.DataFrame(list(unique_pairs.values()))
-                df_atoms = pd.DataFrame(atom_contacts)
-
-                # Create DataFrame for Unique Interface Residues and include \u0394SASA values
-                df_interface_all_data = [rec for rec in all_residue_sasa_records if rec["\u0394SASA (\u212B\u00B2)"] > 1e-4]
-                df_interface_all = pd.DataFrame(df_interface_all_data)
-
-                # Adjust DataFrame Indexes to be 1-based
-                if not df_pairs.empty:
-                    df_pairs.index = df_pairs.index + 1
-                if not df_atoms.empty:
-                    df_atoms.index = df_atoms.index + 1
-                if not df_interface_all.empty:
-                    df_interface_all.index = df_interface_all.index + 1
-
-                # Create side-by-side Layout: Left side for 3D molecular view, Right side for filter controls
-                col_visualizer, col_filters = st.columns([3, 1])
-
-                with col_filters:
-                    st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
-                    enable_labels = st.checkbox("Enable Residue Labels", value=True)
-                    show_molecular_surface = st.checkbox("Transparent molecular surface", value=False)
-
-                    # Dynamic Surface Opacity Slider
-                    if show_molecular_surface:
-                        surface_opacity = st.slider("Surface Opacity", min_value=0.1, max_value=1.0, value=0.4, step=0.1)
-                    else:
-                        surface_opacity = 0.4
-
-                    if contact_links_visualization:
-                        available_pairs = [link["pair_label"] for link in contact_links_visualization]
-                        selected_visual_pairs = st.multiselect(
-                            "Select contact residue pairs to display (leave empty to show all):",
-                            options=available_pairs,
-                            default=[]
-                        )
-                        if selected_visual_pairs:
-                            filtered_links = [link for link in contact_links_visualization if link["pair_label"] in selected_visual_pairs]
-                        else:
-                            filtered_links = contact_links_visualization
-                    else:
-                        st.info("No contacts available to filter.")
-                        filtered_links = []
-
-                    bg_color_option = st.selectbox("Viewer Background Color:", options=["black", "white", "gray"], format_func=lambda x: x.capitalize(), index=0)
-
-                    color_choices = {
-                        "Blue": "#3B82F6",
-                        "Red": "#EF4444",
-                        "Green": "#10B981",
-                        "Purple": "#8B5CF6",
-                        "Orange": "#F59E0B",
-                        "Yellow": "#FBBF24",
-                        "Pink": "#EC4899",
-                        "Cyan": "#06B6D4"
-                    }
-                    chain_a_color_name = st.selectbox(f"Chain {chain_a} Color:", options=list(color_choices.keys()), index=0)
-                    chain_b_color_name = st.selectbox(f"Chain {chain_b} Color:", options=list(color_choices.keys()), index=1)
-                    chain_a_color = color_choices[chain_a_color_name]
-                    chain_b_color = color_choices[chain_b_color_name]
-
-                with col_visualizer:
-                    st.subheader(f"\u2591\u2591 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
-                    st.write("Interactive 3D representation showing contacting residues linked together.")
-
-                    if pdb_raw_data:
-                        try:
-                            escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("'", "\\\'")
-
-                            cylinder_lines_js = ""
-                            labels_js = ""
-                            sidechains_js = ""
-                            vdw_surface_js = ""
-
-                            for link in filtered_links:
-                                ca = link["coord_a"]
-                                cb = link["coord_b"]
-                                cylinder_lines_js += f"""
-                                viewer.addCylinder({{
-                                    start: {{x: {ca[0]}, y: {ca[1]}, z: {ca[2]}}},
-                                    end: {{x: {cb[0]}, y: {cb[1]}, z: {cb[2]}}},
-                                    radius: 0.15,
-                                    fromCap: 1,
-                                    toCap: 1,
-                                    color: 'yellow',
-                                    dashed: true
-                                }});
-                                """
-                                if enable_labels:
-                                    labels_js += f"""
-                                    viewer.addLabel('{link["label_a"]}', {{fontColor:'black', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#3B82F6'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
-                                    viewer.addLabel('{link["label_b"]}', {{fontColor:'black', backgroundColor:'#FEE2E2', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#EF4444'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
-                                    """
-                                sidechains_js += f"""
-                                viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: 'cyan'}}}});
-                                viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
-                                """
-
-                                if show_molecular_surface:
-                                    vdw_surface_js += f"""
-                                    viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: {surface_opacity}, color: '{chain_a_color}'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
-                                    viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: {surface_opacity}, color: '{chain_b_color}'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
-                                    """
-
-                            py3dmol_html = f"""
-                            <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative"></div>
-                            <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
-                                <button id="reset_view_btn" style="
-                                    background-color: #6B7280;
-                                    color: white;
-                                    border: none;
-                                    padding: 8px 16px;
-                                    border-radius: 6px;
-                                    font-weight: 600;
-                                    cursor: pointer;
-                                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                ">\u2196 Reset 3D View</button>
-                                <button id="download_png_btn" style="
-                                    background-color: #2563EB;
-                                    color: white;
-                                    border: none;
-                                    padding: 8px 16px;
-                                    border-radius: 6px;
-                                    font-weight: 600;
-                                    cursor: pointer;
-                                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                ">\u2295 Save 3D View as PNG Image</button>
-                            </div>
-                            <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
-                            <script>
-                                var element = document.getElementById('3dmol_canvas');
-                                var config = {{ backgroundColor: '{bg_color_option}' }};
-                                var viewer = $3Dmol.createViewer(element, config);
-                                viewer.addModel('{escaped_pdb}', 'pdb');
-
-                                viewer.setStyle({{}}, {{}});
-                                viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '{chain_a_color}'}}}});
-                                viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '{chain_b_color}'}}}});
-
-                                {cylinder_lines_js}
-                                {sidechains_js}
-                                {labels_js}
-                                {vdw_surface_js}
-                                viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
-                                viewer.render();
-
-                                document.getElementById('reset_view_btn').addEventListener('click', function() {{
-                                    viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
-                                    viewer.render();
-                                }});
-
-                                document.getElementById('download_png_btn').addEventListener('click', function() {{
-                                    try {{
-                                        var oldCanvas = document.getElementsByTagName('canvas')[0];
-                                        if (!oldCanvas) throw new Error("Canvas element not found.");
-
-                                        var scaleFactor = 3;
-                                        var tempCanvas = document.createElement('canvas');
-                                        tempCanvas.width = oldCanvas.width * scaleFactor;
-                                        tempCanvas.height = oldCanvas.height * scaleFactor;
-                                        var tempCtx = tempCanvas.getContext('2d');
-                                        tempCtx.drawImage(oldCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
-
-                                        var dataUrl = tempCanvas.toDataURL('image/png');
-                                        var link = document.createElement('a');
-                                        link.href = dataUrl;
-                                        link.download = 'protein_interface_3d_view_high_dpi.png';
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                    }} catch(err) {{
-                                        alert('Failed to generate high DPI PNG capture: ' + err.message);
-                                    }}
-                                }});
-                            </script>
-                            """
-                            components.html(py3dmol_html, height=570)
-                        except Exception as e:
-                            st.error(f"Could not render 3D structural model: {e}")
-
-                # --- Inter-chain Contacts Results Table Header ---
-                st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} \u212B")
-
-                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-                with col_m1:
-                    total_unique_res = len(df_interface_all)
-                    st.metric("Unique Interface Residues", f" {total_unique_res}")
-                with col_m2:
-                    st.metric("Residue\u2013Residue Pairs", len(df_pairs))
-                with col_m3:
-                    st.metric("Buried Surface Area (BSA)", f"{total_excluded_sasa:.1f} \u212B\u00B2")
-                with col_m4:
-                    st.metric("Interface Classification", interface_classification.split(" (")[0])
-
-                st.info(f"**Buried Surface Area Metric Summary**: The Buried Surface Area (BSA) across the interface is **{total_excluded_sasa:.2f} \u212B\u00B2**. This classifies this interaction as: **{interface_classification}**.")
-
-                # Download BSA metrics CSV containing residue-level SASA values across both chains
-                if all_residue_sasa_records:
-                    df_bsa_export = pd.DataFrame(all_residue_sasa_records)
-                    df_bsa_export.index = df_bsa_export.index + 1
-                    csv_bsa_metrics = df_bsa_export.to_csv(index=True).encode("utf-8")
-                    st.download_button(
-                        label="\u2301 Download BSA Metrics & Residue-level SASA CSV",
-                        data=csv_bsa_metrics,
-                        file_name=f"bsa_residue_sasa_metrics_{chain_a}_{chain_b}.csv",
-                        mime="text/csv"
-                    )
-
-                if not df_pairs.empty:
-                    tab1, tab2, tab3 = st.tabs([
-                        "\u2004 Unique Interface Residues & Property Analysis",
-                        "\u2004 Residue-Residue Pairs",
-                        "\u2004 Detailed Atom-Atom Contacts"
-                    ])
-
-                    with tab1:
-                        st.write("**Unique interface residues per chain (no duplicates) with calculated SASA parameters:**")
-                        st.dataframe(df_interface_all, use_container_width=True)
-                        csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
-                        st.download_button(
-                            label="\u2584 Download Interface Residues CSV",
-                            data=csv_interface,
-                            file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                            mime="text/csv"
-                        )
-
-                        st.markdown("---")
-
-                        # Retrieve unique residue identifiers for chemistry groups calculation
-                        if not df_interface_all.empty:
-                            all_unique_res = df_interface_all["Residue"].tolist()
-                        else:
-                            all_unique_res = []
-
-                        df_aa_stats, df_groups, aa_counts = get_amino_acid_statistics(all_unique_res)
-
-                        if df_aa_stats is not None:
-                            st.write("**i) Amino acid frequency distribution**")
-                            col_table_i, col_chart_i = st.columns(2)
-                            with col_table_i:
-                                st.dataframe(df_aa_stats, use_container_width=True)
-                                csv_aa_stats = df_aa_stats.to_csv(index=True).encode("utf-8")
-                                st.download_button(
-                                    label="\u2584 Download Amino Acid Frequency CSV",
-                                    data=csv_aa_stats,
-                                    file_name=f"amino_acid_frequency_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                                    mime="text/csv"
-                                )
-                            with col_chart_i:
-                                st.bar_chart(aa_counts, use_container_width=True)
-
-                            st.markdown("---")
-
-                            st.write("**ii) Group Distributions**")
-                            col_table_ii, col_chart_ii = st.columns(2)
-                            with col_table_ii:
-                                st.dataframe(df_groups, use_container_width=True)
-                                csv_groups = df_groups.to_csv(index=True).encode("utf-8")
-                                st.download_button(
-                                    label="\u2584 Download Group Distribution CSV",
-                                    data=csv_groups,
-                                    file_name=f"amino_acid_groups_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                                    mime="text/csv"
-                                )
-                            with col_chart_ii:
-                                st.bar_chart(df_groups.set_index("Category")["Count"], use_container_width=True)
-                        else:
-                            st.write("No residues to display properties for.")
-
-                    with tab2:
-                        st.dataframe(df_pairs, use_container_width=True)
-                        csv_pairs = df_pairs.to_csv(index=True).encode("utf-8")
-                        st.download_button(
-                            label="\u2584 Download Residue Pairs CSV",
-                            data=csv_pairs,
-                            file_name=f"residue_pairs_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                            mime="text/csv"
-                        )
-
-                    with tab3:
-                        st.dataframe(df_atoms, use_container_width=True)
-                        csv_atoms = df_atoms.to_csv(index=True).encode("utf-8")
-                        st.download_button(
-                            label="\u2584 Download Atom Contacts CSV",
-                            data=csv_atoms,
-                            file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
-                            mime="text/csv"
-                        )
-
-                    # PDF Generation Export Section
-                    st.markdown("---")
-                    st.subheader("\u2301 Export Report as PDF")
-                    st.write("Generate a detailed, formatted PDF summary report.")
-
-                    pdf_buffer = io.BytesIO()
-                    doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-                    styles = getSampleStyleSheet()
-
-                    title_style = ParagraphStyle(
-                        'ReportTitleStyle',
-                        parent=styles['Heading1'],
-                        fontSize=22,
-                        textColor=colors.HexColor('#1E3A8A'),
-                        spaceAfter=15
-                    )
-                    section_style = ParagraphStyle(
-                        'ReportSectionStyle',
-                        parent=styles['Heading2'],
-                        fontSize=14,
-                        textColor=colors.HexColor('#2563EB'),
-                        spaceBefore=12,
-                        spaceAfter=8
-                    )
-                    normal_style = styles['Normal']
-
-                    story = []
-                    story.append(Paragraph("Protein Contact Residue Server Analysis Report", title_style))
-                    story.append(Paragraph(f"<b>Structure Target:</b> {pdb_id.upper()}", normal_style))
-                    story.append(Paragraph(f"<b>Interface Chains:</b> Chain {chain_a} & Chain {chain_b}", normal_style))
-                    story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} \u212B", normal_style))
-                    story.append(Paragraph(f"<b>Buried Surface Area (BSA):</b> {total_excluded_sasa:.2f} \u212B\u00B2 ({interface_classification})", normal_style))
-                    story.append(Spacer(1, 15))
-
-                    # Metrics Section
-                    story.append(Paragraph("1. Key Interface Metrics", section_style))
-                    metrics_table_data = [
-                        ["Metric Name", "Value"],
-                        ["Total Unique Interface Residues (\u0394SASA > 0)", str(total_unique_res)],
-                        ["Residue-Residue Pairs", str(len(df_pairs))],
-                        ["Atom-Atom Contacts", str(len(df_atoms))],
-                        ["Buried Surface Area (BSA)", f"{total_excluded_sasa:.2f} \u212B\u00B2"]
-                    ]
-                    t_metrics = Table(metrics_table_data, colWidths=[250, 100])
-                    t_metrics.setStyle(TableStyle([
-                        ('BACKGROUND', (0,0), (1,0), colors.HexColor('#3B82F6')),
-                        ('TEXTCOLOR', (0,0), (1,0), colors.white),
-                        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-                        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-                        ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB'))
-                    ]))
-                    story.append(t_metrics)
-                    story.append(Spacer(1, 15))
-
-                    # Property Analysis Section
-                    if df_groups is not None:
-                        story.append(Paragraph("2. Chemical Group Distributions", section_style))
-                        groups_table_data = [["Category", "Count", "Percentage (%)"]]
-                        for idx, row in df_groups.iterrows():
-                            groups_table_data.append([str(row["Category"]), str(row["Count"]), f"{row['Percentage (%)']:.2f}%"])
-                        t_groups = Table(groups_table_data, colWidths=[200, 70, 100])
-                        t_groups.setStyle(TableStyle([
-                            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#10B981')),
-                            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-                            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                            ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB'))
-                        ]))
-                        story.append(t_groups)
-                        story.append(Spacer(1, 15))
-
-                    # Distance Distribution Plot Section
-                    if not df_pairs.empty and "Minimum Distance (\u212B)" in df_pairs.columns:
-                        story.append(Paragraph("3. Interface Contact Distance Summary Plot", section_style))
-                        try:
-                            fig, ax = plt.subplots(figsize=(6, 3))
-                            distances = df_pairs["Minimum Distance (\u212B)"].dropna().astype(float)
-                            ax.hist(distances, bins=10, color="#3B82F6", edgecolor="black", alpha=0.8)
-                            ax.set_title("Distribution of Minimum Residue-Residue Distances", fontsize=10, fontweight="bold", color="#1E3A8A")
-                            ax.set_xlabel("Distance (\u212B)", fontsize=8)
-                            ax.set_ylabel("Frequency", fontsize=8)
-                            ax.grid(True, linestyle="--", alpha=0.5)
-                            plt.tight_layout()
-
-                            img_buf = io.BytesIO()
-                            plt.savefig(img_buf, format="png", dpi=150)
-                            img_buf.seek(0)
-                            plt.close(fig)
-
-                            story.append(Image(img_buf, width=360, height=180))
-                            story.append(Spacer(1, 15))
-                        except Exception as ex_plot:
-                            story.append(Paragraph(f"<i>* Note: Could not render interface contact plot: {ex_plot}</i>", normal_style))
-                            story.append(Spacer(1, 15))
-
-                    # 4. Residue-Residue Contacts Table Section inside PDF
-                    story.append(Paragraph("4. Residue-Residue Contact Pairs Table", section_style))
-                    pairs_table_data = [["S.No", "ResA", "ResB", "Distance (\u212B)"]]
-
-                    max_rows_to_render = min(100, len(df_pairs))
-                    for idx, row in df_pairs.head(max_rows_to_render).iterrows():
-                        res_a_str = f"{row['Residue A Name']}{row['Residue A ID']}"
-                        res_b_str = f"{row['Residue B Name']}{row['Residue B ID']}"
-                        try:
-                            dist_val = float(row["Minimum Distance (\u212B)"])
-                            dist_formatted = f" {dist_val:.3f}"
-                        except:
-                            dist_formatted = str(row["Minimum Distance (\u212B)"])
-
-                        pairs_table_data.append([
-                            str(idx),
-                            res_a_str,
-                            res_b_str,
-                            dist_formatted
-                        ])
-
-                    t_pairs = Table(pairs_table_data, colWidths=[60, 110, 110, 120])
-                    t_pairs.setStyle(TableStyle([
-                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F3F4F6')),
-                        ('TEXTCOLOR', (0,0), (-1,0), colors.black),
-                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0,0), (-1,-1), 9),
-                        ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB')),
-                        ('TOPPADDING', (0,0), (-1,-1), 5),
-                        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-                    ]))
-                    story.append(t_pairs)
-
-                    if len(df_pairs) > max_rows_to_render:
-                        story.append(Spacer(1, 5))
-                        story.append(Paragraph(f"<i>* Note: Only the first {max_rows_to_render} contacts are displayed here. Download the complete CSV for full contact sets.</i>", normal_style))
-
-                    doc.build(story)
-                    pdf_data = pdf_buffer.getvalue()
-                    st.download_button(
-                        label="\u2301 Download PDF Report",
-                        data=pdf_data,
-                        file_name=f"protein_contact_report_{pdb_id}_{chain_a}_{chain_b}.pdf",
-                        mime="application/pdf"
-                    )
+# Main Tab 1: Primary Analysis Section (3D Viewer)
+with main_tab_analysis:
+    if not analysis_results:
+        st.info("\u2610 Please load a structure from the sidebar & select valid parameters to begin.")
     else:
-        st.info("\u2610 Please load a structure from the sidebar to begin.")
+        # Unpack variables
+        df_pairs = analysis_results["df_pairs"]
+        df_atoms = analysis_results["df_atoms"]
+        df_interface_all = analysis_results["df_interface_all"]
+        total_excluded_sasa = analysis_results["total_excluded_sasa"]
+        interface_classification = analysis_results["interface_classification"]
+        all_residue_sasa_records = analysis_results["all_residue_sasa_records"]
+        contact_links_visualization = analysis_results["contact_links_visualization"]
+        total_unique_res = analysis_results["total_unique_res"]
+        chain_a = analysis_results["chain_a"]
+        chain_b = analysis_results["chain_b"]
+        selected_cutoff = analysis_results["selected_cutoff"]
+        pdb_raw_data = analysis_results["pdb_raw_data"]
+        pdb_id = analysis_results["pdb_id"]
+
+        # Create side-by-side Layout: Left side for 3D molecular view, Right side for filter controls
+        col_visualizer, col_filters = st.columns([3, 1])
+
+        with col_filters:
+            st.markdown('<div class="sidebar-header-highlight">3. 3D Filter Display</div>', unsafe_allow_html=True)
+            enable_labels = st.checkbox("Enable Residue Labels", value=True)
+            show_molecular_surface = st.checkbox("Transparent molecular surface", value=False)
+
+            # Dynamic Surface Opacity Slider
+            if show_molecular_surface:
+                surface_opacity = st.slider("Surface Opacity", min_value=0.1, max_value=1.0, value=0.4, step=0.1)
+            else:
+                surface_opacity = 0.4
+
+            if contact_links_visualization:
+                available_pairs = [link["pair_label"] for link in contact_links_visualization]
+                selected_visual_pairs = st.multiselect(
+                    "Select contact residue pairs to display (leave empty to show all):",
+                    options=available_pairs,
+                    default=[]
+                )
+                if selected_visual_pairs:
+                    filtered_links = [link for link in contact_links_visualization if link["pair_label"] in selected_visual_pairs]
+                else:
+                    filtered_links = contact_links_visualization
+            else:
+                st.info("No contacts available to filter.")
+                filtered_links = []
+
+            bg_color_option = st.selectbox("Viewer Background Color:", options=["black", "white", "gray"], format_func=lambda x: x.capitalize(), index=0)
+
+            color_choices = {
+                "Blue": "#3B82F6",
+                "Red": "#EF4444",
+                "Green": "#10B981",
+                "Purple": "#8B5CF6",
+                "Orange": "#F59E0B",
+                "Yellow": "#FBBF24",
+                "Pink": "#EC4899",
+                "Cyan": "#06B6D4"
+            }
+            chain_a_color_name = st.selectbox(f"Chain {chain_a} Color:", options=list(color_choices.keys()), index=0)
+            chain_b_color_name = st.selectbox(f"Chain {chain_b} Color:", options=list(color_choices.keys()), index=1)
+            chain_a_color = color_choices[chain_a_color_name]
+            chain_b_color = color_choices[chain_b_color_name]
+
+        with col_visualizer:
+            st.subheader(f"\u2591\u2591 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
+            st.write("Interactive 3D representation showing contacting residues linked together.")
+
+            if pdb_raw_data:
+                try:
+                    escaped_pdb = pdb_raw_data.replace("\n", "\\n").replace("\"", "\\\"").replace("'", "\\\'")
+
+                    cylinder_lines_js = ""
+                    labels_js = ""
+                    sidechains_js = ""
+                    vdw_surface_js = ""
+
+                    for link in filtered_links:
+                        ca = link["coord_a"]
+                        cb = link["coord_b"]
+                        cylinder_lines_js += f"""
+                        viewer.addCylinder({{
+                            start: {{x: {ca[0]}, y: {ca[1]}, z: {ca[2]}}},
+                            end: {{x: {cb[0]}, y: {cb[1]}, z: {cb[2]}}},
+                            radius: 0.15,
+                            fromCap: 1,
+                            toCap: 1,
+                            color: 'yellow',
+                            dashed: true
+                        }});
+                        """
+                        if enable_labels:
+                            labels_js += f"""
+                            viewer.addLabel('{link["label_a"]}', {{fontColor:'black', backgroundColor:'#DCE7F3', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#3B82F6'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
+                            viewer.addLabel('{link["label_b"]}', {{fontColor:'black', backgroundColor:'#FEE2E2', fontSize:10, backgroundOpacity:0.8, borderThickness:1.0, borderColor:'#EF4444'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
+                            """
+                        sidechains_js += f"""
+                        viewer.setStyle({{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}}, {{stick: {{colorspec: 'cyan'}}}});
+                        viewer.setStyle({{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}}, {{stick: {{colorspec: 'orange'}}}});
+                        """
+
+                        if show_molecular_surface:
+                            vdw_surface_js += f"""
+                            viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: {surface_opacity}, color: '{chain_a_color}'}}, {{chain: '{link["spec_a"]["chain"]}', resi: {link["spec_a"]["resi"]}}});
+                            viewer.addSurface($3Dmol.SurfaceType.VDW, {{opacity: {surface_opacity}, color: '{chain_b_color}'}}, {{chain: '{link["spec_b"]["chain"]}', resi: {link["spec_b"]["resi"]}}});
+                            """
+
+                    py3dmol_html = f"""
+                    <div id="3dmol_canvas" style="width: 100%; height: 500px; position: relative"></div>
+                    <div style="margin-top: 10px; margin-bottom: 20px; display: flex; gap: 10px;">
+                        <button id="reset_view_btn" style="
+                            background-color: #6B7280;
+                            color: white;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        ">\u2196 Reset 3D View</button>
+                        <button id="download_png_btn" style="
+                            background-color: #2563EB;
+                            color: white;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        ">\u2295 Save 3D View as PNG Image</button>
+                    </div>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/1.7.0/3Dmol-min.js"></script>
+                    <script>
+                        var element = document.getElementById('3dmol_canvas');
+                        var config = {{ backgroundColor: '{bg_color_option}' }};
+                        var viewer = $3Dmol.createViewer(element, config);
+                        viewer.addModel('{escaped_pdb}', 'pdb');
+
+                        viewer.setStyle({{}}, {{}});
+                        viewer.setStyle({{chain: '{chain_a}'}}, {{cartoon: {{color: '{chain_a_color}'}}}});
+                        viewer.setStyle({{chain: '{chain_b}'}}, {{cartoon: {{color: '{chain_b_color}'}}}});
+
+                        {cylinder_lines_js}
+                        {sidechains_js}
+                        {labels_js}
+                        {vdw_surface_js}
+                        viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
+                        viewer.render();
+
+                        document.getElementById('reset_view_btn').addEventListener('click', function() {{
+                            viewer.zoomTo({{chain: ['{chain_a}', '{chain_b}']}});
+                            viewer.render();
+                        }});
+
+                        document.getElementById('download_png_btn').addEventListener('click', function() {{
+                            try {{
+                                var oldCanvas = document.getElementsByTagName('canvas')[0];
+                                if (!oldCanvas) throw new Error("Canvas element not found.");
+
+                                var scaleFactor = 3;
+                                var tempCanvas = document.createElement('canvas');
+                                tempCanvas.width = oldCanvas.width * scaleFactor;
+                                tempCanvas.height = oldCanvas.height * scaleFactor;
+                                var tempCtx = tempCanvas.getContext('2d');
+                                tempCtx.drawImage(oldCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+
+                                var dataUrl = tempCanvas.toDataURL('image/png');
+                                var link = document.createElement('a');
+                                link.href = dataUrl;
+                                link.download = 'protein_interface_3d_view_high_dpi.png';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }} catch(err) {{
+                                alert('Failed to generate high DPI PNG capture: ' + err.message);
+                            }}
+                        }});
+                    </script>
+                    """
+                    components.html(py3dmol_html, height=570)
+                except Exception as e:
+                    st.error(f"Could not render 3D structural model: {e}")
+
+        # --- Inter-chain Contacts Results Table Header ---
+        st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} \u212B")
+
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        with col_m1:
+            st.metric("Unique Interface Residues", f" {total_unique_res}")
+        with col_m2:
+            st.metric("Residue\u2013Residue Pairs", len(df_pairs))
+        with col_m3:
+            st.metric("Buried Surface Area (BSA)", f"{total_excluded_sasa:.1f} \u212B\u00B2")
+        with col_m4:
+            st.metric("Interface Classification", interface_classification.split(" (")[0])
+
+        st.info(f"**Buried Surface Area Metric Summary**: The Buried Surface Area (BSA) across the interface is **{total_excluded_sasa:.2f} \u212B\u00B2**. This classifies this interaction as: **{interface_classification}**.")
+
+        # Download BSA metrics CSV containing residue-level SASA values across both chains
+        if all_residue_sasa_records:
+            df_bsa_export = pd.DataFrame(all_residue_sasa_records)
+            df_bsa_export.index = df_bsa_export.index + 1
+            csv_bsa_metrics = df_bsa_export.to_csv(index=True).encode("utf-8")
+            st.download_button(
+                label="\u2301 Download BSA Metrics & Residue-level SASA CSV",
+                data=csv_bsa_metrics,
+                file_name=f"bsa_residue_sasa_metrics_{chain_a}_{chain_b}.csv",
+                mime="text/csv"
+            )
+
+        if not df_pairs.empty:
+            tab1, tab2, tab3 = st.tabs([
+                "\u2004 Unique Interface Residues & Property Analysis",
+                "\u2004 Residue-Residue Pairs",
+                "\u2004 Detailed Atom-Atom Contacts"
+            ])
+
+            with tab1:
+                st.write("**Unique interface residues per chain (no duplicates) with calculated SASA parameters:**")
+                st.dataframe(df_interface_all, use_container_width=True)
+                csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
+                st.download_button(
+                    label="\u2584 Download Interface Residues CSV",
+                    data=csv_interface,
+                    file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                    mime="text/csv"
+                )
+
+                st.markdown("---")
+
+                # Retrieve unique residue identifiers for chemistry groups calculation
+                if not df_interface_all.empty:
+                    all_unique_res = df_interface_all["Residue"].tolist()
+                else:
+                    all_unique_res = []
+
+                df_aa_stats, df_groups, aa_counts = get_amino_acid_statistics(all_unique_res)
+
+                if df_aa_stats is not None:
+                    st.write("**i) Amino acid frequency distribution**")
+                    col_table_i, col_chart_i = st.columns(2)
+                    with col_table_i:
+                        st.dataframe(df_aa_stats, use_container_width=True)
+                        csv_aa_stats = df_aa_stats.to_csv(index=True).encode("utf-8")
+                        st.download_button(
+                            label="\u2584 Download Amino Acid Frequency CSV",
+                            data=csv_aa_stats,
+                            file_name=f"amino_acid_frequency_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                            mime="text/csv"
+                        )
+                    with col_chart_i:
+                        st.bar_chart(aa_counts, use_container_width=True)
+
+                    st.markdown("---")
+
+                    st.write("**ii) Group Distributions**")
+                    col_table_ii, col_chart_ii = st.columns(2)
+                    with col_table_ii:
+                        st.dataframe(df_groups, use_container_width=True)
+                        csv_groups = df_groups.to_csv(index=True).encode("utf-8")
+                        st.download_button(
+                            label="\u2584 Download Group Distribution CSV",
+                            data=csv_groups,
+                            file_name=f"amino_acid_groups_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                            mime="text/csv"
+                )
+                    with col_chart_ii:
+                        st.bar_chart(df_groups.set_index("Category")["Count"], use_container_width=True)
+                else:
+                    st.write("No residues to display properties for.")
+
+            with tab2:
+                st.dataframe(df_pairs, use_container_width=True)
+                csv_pairs = df_pairs.to_csv(index=True).encode("utf-8")
+                st.download_button(
+                    label="\u2584 Download Residue Pairs CSV",
+                    data=csv_pairs,
+                    file_name=f"residue_pairs_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                    mime="text/csv"
+                )
+
+            with tab3:
+                st.dataframe(df_atoms, use_container_width=True)
+                csv_atoms = df_atoms.to_csv(index=True).encode("utf-8")
+                st.download_button(
+                    label="\u2584 Download Atom Contacts CSV",
+                    data=csv_atoms,
+                    file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
+                    mime="text/csv"
+                )
+
+            # PDF Generation Export Section
+            st.markdown("---")
+            st.subheader("\u2301 Export Report as PDF")
+            st.write("Generate a detailed, formatted PDF summary report.")
+
+            pdf_buffer = io.BytesIO()
+            doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+            styles = getSampleStyleSheet()
+
+            title_style = ParagraphStyle(
+                'ReportTitleStyle',
+                parent=styles['Heading1'],
+                fontSize=22,
+                textColor=colors.HexColor('#1E3A8A'),
+                spaceAfter=15
+            )
+            section_style = ParagraphStyle(
+                'ReportSectionStyle',
+                parent=styles['Heading2'],
+                fontSize=14,
+                textColor=colors.HexColor('#2563EB'),
+                spaceBefore=12,
+                spaceAfter=8
+            )
+            normal_style = styles['Normal']
+
+            story = []
+            story.append(Paragraph("Protein Contact Residue Server Analysis Report", title_style))
+            story.append(Paragraph(f"<b>Structure Target:</b> {pdb_id.upper()}", normal_style))
+            story.append(Paragraph(f"<b>Interface Chains:</b> Chain {chain_a} & Chain {chain_b}", normal_style))
+            story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} \u212B", normal_style))
+            story.append(Paragraph(f"<b>Buried Surface Area (BSA):</b> {total_excluded_sasa:.2f} \u212B\u00B2 ({interface_classification})", normal_style))
+            story.append(Spacer(1, 15))
+
+            # Metrics Section
+            story.append(Paragraph("1. Key Interface Metrics", section_style))
+            metrics_table_data = [
+                ["Metric Name", "Value"],
+                ["Total Unique Interface Residues (\u0394SASA > 0)", str(total_unique_res)],
+                ["Residue-Residue Pairs", str(len(df_pairs))],
+                ["Atom-Atom Contacts", str(len(df_atoms))],
+                ["Buried Surface Area (BSA)", f"{total_excluded_sasa:.2f} \u212B\u00B2"]
+            ]
+            t_metrics = Table(metrics_table_data, colWidths=[250, 100])
+            t_metrics.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (1,0), colors.HexColor('#3B82F6')),
+                ('TEXTCOLOR', (0,0), (1,0), colors.white),
+                ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB'))
+            ]))
+            story.append(t_metrics)
+            story.append(Spacer(1, 15))
+
+            # Property Analysis Section
+            if df_groups is not None:
+                story.append(Paragraph("2. Chemical Group Distributions", section_style))
+                groups_table_data = [["Category", "Count", "Percentage (%)"]]
+                for idx, row in df_groups.iterrows():
+                    groups_table_data.append([str(row["Category"]), str(row["Count"]), f"{row['Percentage (%)']:.2f}%"])
+                t_groups = Table(groups_table_data, colWidths=[200, 70, 100])
+                t_groups.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#10B981')),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                    ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB'))
+                ]))
+                story.append(t_groups)
+                story.append(Spacer(1, 15))
+
+            # Distance Distribution Plot Section
+            if not df_pairs.empty and "Minimum Distance (\u212B)" in df_pairs.columns:
+                story.append(Paragraph("3. Interface Contact Distance Summary Plot", section_style))
+                try:
+                    fig, ax = plt.subplots(figsize=(6, 3))
+                    distances = df_pairs["Minimum Distance (\u212B)"].dropna().astype(float)
+                    ax.hist(distances, bins=10, color="#3B82F6", edgecolor="black", alpha=0.8)
+                    ax.set_title("Distribution of Minimum Residue-Residue Distances", fontsize=10, fontweight="bold", color="#1E3A8A")
+                    ax.set_xlabel("Distance (\u212B)", fontsize=8)
+                    ax.set_ylabel("Frequency", fontsize=8)
+                    ax.grid(True, linestyle="--", alpha=0.5)
+                    plt.tight_layout()
+
+                    img_buf = io.BytesIO()
+                    plt.savefig(img_buf, format="png", dpi=150)
+                    img_buf.seek(0)
+                    plt.close(fig)
+
+                    story.append(Image(img_buf, width=360, height=180))
+                    story.append(Spacer(1, 15))
+                except Exception as ex_plot:
+                    story.append(Paragraph(f"<i>* Note: Could not render interface contact plot: {ex_plot}</i>", normal_style))
+                    story.append(Spacer(1, 15))
+
+            # 4. Residue-Residue Contacts Table Section inside PDF
+            story.append(Paragraph("4. Residue-Residue Contact Pairs Table", section_style))
+            pairs_table_data = [["S.No", "ResA", "ResB", "Distance (\u212B)"]]
+
+            max_rows_to_render = min(100, len(df_pairs))
+            for idx, row in df_pairs.head(max_rows_to_render).iterrows():
+                res_a_str = f"{row['Residue A Name']}{row['Residue A ID']}"
+                res_b_str = f"{row['Residue B Name']}{row['Residue B ID']}"
+                try:
+                    dist_val = float(row["Minimum Distance (\u212B)"])
+                    dist_formatted = f" {dist_val:.3f}"
+                except:
+                    dist_formatted = str(row["Minimum Distance (\u212B)"])
+
+                pairs_table_data.append([
+                    str(idx),
+                    res_a_str,
+                    res_b_str,
+                    dist_formatted
+                ])
+
+            t_pairs = Table(pairs_table_data, colWidths=[60, 110, 110, 120])
+            t_pairs.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F3F4F6')),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0,0), (-1,-1), 9),
+                ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#E5E7EB'))
+            ]))
+            story.append(t_pairs)
+            doc.build(story)
+            pdf_data = pdf_buffer.getvalue()
+            st.download_button(
+                label="\u2301 Download PDF Report",
+                data=pdf_data,
+                file_name=f"protein_contact_report_{pdb_id}_{chain_a}_{chain_b}.pdf",
+                mime="application/pdf"
+            )
+
+# Main Tab 2: New Requested Labeled 2D Side-by-Side Schematic Viewer
+with main_tab_2d_viewer:
+    if not analysis_results:
+        st.info("\u2610 Please load a structure from the sidebar & select valid parameters to begin.")
+    else:
+        st.subheader(f"\u25A6 Inter-chain 2D Interface Diagram: Chain {chain_a} \u2194 Chain {chain_b}")
+        st.write("Displays the interacting residues from both chains in parallel with connecting lines marking physical contacts.")
+
+        df_pairs = analysis_results["df_pairs"]
+        if df_pairs.empty:
+            st.warning("No inter-chain contact residue pairs found under current cut-off distance.")
+        else:
+            # Gather unique contact residues from Chain A and Chain B to render side-by-side nodes
+            unique_nodes_a = sorted(list(set(df_pairs.apply(lambda r: f"{r['Residue A Name']}{r['Residue A ID']}", axis=1))))
+            unique_nodes_b = sorted(list(set(df_pairs.apply(lambda r: f"{r['Residue B Name']}{r['Residue B ID']}", axis=1))))
+
+            # Prepare mapping of connections for the 2D Canvas lines rendering
+            connections = []
+            for _, row in df_pairs.iterrows():
+                res_a = f"{row['Residue A Name']}{row['Residue A ID']}"
+                res_b = f"{row['Residue B Name']}{row['Residue B ID']}"
+                dist_val = row["Minimum Distance (\u212B)"]
+                connections.append({"from": res_a, "to": res_b, "dist": dist_val})
+
+            # Generate dynamic JavaScript / SVG diagram to display side-by-side nodes with labels & dotted linkages
+            svg_width = 800
+            node_height = 35
+            node_width = 110
+            spacing = 15
+            total_height = max(len(unique_nodes_a), len(unique_nodes_b)) * (node_height + spacing) + 50
+
+            # Format connection list for JSON integration inside JS
+            import json
+            connections_json = json.dumps(connections)
+            nodes_a_json = json.dumps(unique_nodes_a)
+            nodes_b_json = json.dumps(unique_nodes_b)
+
+            schematic_html = f"""
+            <div style="width:100%; overflow-x:auto;">
+                <svg id="schematic_2d" width="{svg_width}" height="{total_height}" style="background:#FFFFFF; border: 1px solid #E5E7EB; border-radius:12px; margin: 10px auto; display:block;">
+                    <defs>
+                        <linearGradient id="chainAGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#3B82F6" />
+                            <stop offset="100%" stop-color="#1D4ED8" />
+                        </linearGradient>
+                        <linearGradient id="chainBGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#EF4444" />
+                            <stop offset="100%" stop-color="#B91C1C" />
+                        </linearGradient>
+                        <filter id="dropShadow" x="-10%" y="-10%" width="120%" height="120%">
+                            <feDropShadow dx="2" dy="3" stdDeviation="2" flood-opacity="0.15"/>
+                        </filter>
+                    </defs>
+
+                    <!-- Headers -->
+                    <text x="150" y="30" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#1E3A8A">Chain {chain_a} Residues</text>
+                    <text x="650" y="30" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#B91C1C">Chain {chain_b} Residues</text>
+
+                    <g id="linkages_layer"></g>
+                    <g id="nodes_layer"></g>
+                </svg>
+            </div>
+
+            <script>
+                const nodesA = {nodes_a_json};
+                const nodesB = {nodes_b_json};
+                const links = {connections_json};
+                
+                const svgW = {svg_width};
+                const nodeH = {node_height};
+                const nodeW = {node_width};
+                const spacing = {spacing};
+                const xOffsetA = 100;
+                const xOffsetB = 590;
+                const yStart = 60;
+
+                const nodesAPos = {{}};
+                const nodesBPos = {{}};
+
+                const nodesLayer = document.getElementById('nodes_layer');
+                const linkagesLayer = document.getElementById('linkages_layer');
+
+                // Render Chain A Nodes
+                nodesA.forEach((node, index) => {{
+                    const y = yStart + index * (nodeH + spacing);
+                    nodesAPos[node] = {{ x: xOffsetA + nodeW, y: y + nodeH / 2 }};
+
+                    nodesLayer.innerHTML += `
+                        <g filter="url(#dropShadow)">
+                            <rect x="${{xOffsetA}}" y="${{y}}" width="${{nodeW}}" height="${{nodeH}}" rx="6" fill="url(#chainAGrad)" />
+                            <text x="${{xOffsetA + nodeW/2}}" y="${{y + nodeH/2 + 5}}" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="11.5" fill="#FFFFFF">${{node}}</text>
+                        </g>
+                    `;
+                }});
+
+                // Render Chain B Nodes
+                nodesB.forEach((node, index) => {{
+                    const y = yStart + index * (nodeH + spacing);
+                    nodesBPos[node] = {{ x: xOffsetB, y: y + nodeH / 2 }};
+
+                    nodesLayer.innerHTML += `
+                        <g filter="url(#dropShadow)">
+                            <rect x="${{xOffsetB}}" y="${{y}}" width="${{nodeW}}" height="${{nodeH}}" rx="6" fill="url(#chainBGrad)" />
+                            <text x="${{xOffsetB + nodeW/2}}" y="${{y + nodeH/2 + 5}}" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="11.5" fill="#FFFFFF">${{node}}</text>
+                        </g>
+                    `;
+                }});
+
+                // Render Connecting Inter-chain Dotted Lines with Distance labels
+                links.forEach(link => {{
+                    const posA = nodesAPos[link.from];
+                    const posB = nodesBPos[link.to];
+
+                    if (posA && posB) {{
+                        const midX = (posA.x + posB.x) / 2;
+                        const midY = (posA.y + posB.y) / 2;
+                        
+                        linkagesLayer.innerHTML += `
+                            <line x1="${{posA.x}}" y1="${{posA.y}}" x2="${{posB.x}}" y2="${{posB.y}}" stroke="#9CA3AF" stroke-width="1.8" stroke-dasharray="4,4" />
+                            <rect x="${{midX - 22}}" y="${{midY - 9}}" width="44" height="16" rx="4" fill="#F3F4F6" stroke="#D1D5DB" stroke-width="1" />
+                            <text x="${{midX}}" y="${{midY + 3}}" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#374151">${{link.dist}}\u212B</text>
+                        `;
+                    }}
+                }});
+            </script>
+            """
+            components.html(schematic_html, height=total_height + 40)
