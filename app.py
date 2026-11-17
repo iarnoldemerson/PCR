@@ -963,7 +963,7 @@ with main_tab_2d_viewer:
                     <!-- Main Title: PDB ID -->
                     <text x="400" y="32" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="bold" fill="#1E3A8A">STRUCTURE INTERFACE MODEL - PDB ID: {active_target_title}</text>
 
-                    <!-- Color Legend Panel wrapped into 2 compact rows to prevent going out of boundaries (excluding 'Default') -->
+                    <!-- Color Legend Panel wrapped into 2 compact rows to prevent going out of boundaries -->
                     <g id="legend_group" transform="translate(25, 50)">
                         <rect x="0" y="0" width="750" height="56" rx="6" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1" />
                         <text x="15" y="20" font-family="sans-serif" font-size="11" font-weight="bold" fill="#374151">Legends:</text>
@@ -1023,11 +1023,8 @@ with main_tab_2d_viewer:
                 let legendItemIndex = 0;
 
                 Object.entries(colorMap).forEach(([groupName, hexColor]) => {{
-                    // Filter out non-used 'Default' group to keep visualization clean
-                    if (groupName === 'Default') return;
-
                     // After 3 items, wrap to the next row (compact design)
-                    if (legendItemIndex > 0 && legendItemIndex % 3 === 0) {{ 
+                    if (legendItemIndex > 0 && legendItemIndex % 3 === 0) {{
                         legendX = 85;
                         legendY += 23;
                     }}
