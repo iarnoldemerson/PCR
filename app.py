@@ -931,12 +931,15 @@ with main_tab_2d_viewer:
             show_distance_labels = st.checkbox("Display distance labels on schematic connections", value=True)
             st.write("")
 
-            # Generate dynamic JavaScript / SVG diagram to display side-by-side nodes with labels & dotted linkages
+            # Generate dynamic JavaScript / SVG diagram to display side-by-side nodes with labels, dotted linkages, and Color Legends
             svg_width = 800
             node_height = 35
             node_width = 110
             spacing = 15
-            total_height = max(len(unique_nodes_a), len(unique_nodes_b)) * (node_height + spacing) + 50
+            # Allocate additional vertical space at the top of the SVG for the Legend block
+            legend_height = 50
+            y_start = 60 + legend_height
+            total_height = max(len(unique_nodes_a), len(unique_nodes_b)) * (node_height + spacing) + y_start + 20
 
             # Format connection list for JSON integration inside JS
             import json
@@ -946,6 +949,7 @@ with main_tab_2d_viewer:
             node_colors_a_json = json.dumps(node_colors_a)
             node_colors_b_json = json.dumps(node_colors_b)
             show_distance_val = "true" if show_distance_labels else "false"
+            color_map_json = json.dumps(aa_color_map)
 
             schematic_html = f"""
             <div style="width:100%; overflow-x:auto;">
@@ -956,9 +960,15 @@ with main_tab_2d_viewer:
                         </filter>
                     </defs>
 
+                    <!-- Color Legend Panel -->
+                    <g id="legend_group" transform="translate(25, 15)">
+                        <rect x="0" y="0" width="750" height="35" rx="6" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1" />
+                        <text x="12" y="21" font-family="sans-serif" font-size="11" font-weight="bold" fill="#374151">Legends:</text>
+                    </g>
+
                     <!-- Headers -->
-                    <text x="150" y="30" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#1E3A8A">Chain {chain_a} Residues</text>
-                    <text x="650" y="30" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#B91C1C">Chain {chain_b} Residues</text>
+                    <text x="150" y="90" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#1E3A8A">Chain {chain_a} Residues</text>
+                    <text x="650" y="90" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#B91C1C">Chain {chain_b} Residues</text>
 
                     <g id="linkages_layer"></g>
                     <g id="nodes_layer"></g>
@@ -987,6 +997,7 @@ with main_tab_2d_viewer:
                 const colorsB = {node_colors_b_json};
                 const links = {connections_json};
                 const showDist = {show_distance_val};
+                const colorMap = {color_map_json};
 
                 const svgW = {svg_width};
                 const nodeH = {node_height};
@@ -994,13 +1005,25 @@ with main_tab_2d_viewer:
                 const spacing = {spacing};
                 const xOffsetA = 100;
                 const xOffsetB = 590;
-                const yStart = 60;
+                const yStart = {y_start};
 
                 const nodesAPos = {{}};
                 const nodesBPos = {{}};
 
                 const nodesLayer = document.getElementById('nodes_layer');
                 const linkagesLayer = document.getElementById('linkages_layer');
+                const legendGroup = document.getElementById('legend_group');
+
+                // Render the interactive chemical property legends into the Legend group
+                let legendX = 75;
+                const legendY = 22;
+                Object.entries(colorMap).forEach(([groupName, hexColor]) => {{
+                    legendGroup.innerHTML += `
+                        <rect x="${{legendX}}" y="${{legendY - 10}}" width="14" height="14" rx="3" fill="${{hexColor}}" />
+                        <text x="${{legendX + 18}}" y="${{legendY + 1}}" font-family="sans-serif" font-size="10.5" fill="#4B5563">${{groupName}}</text>
+                    `;
+                    legendX += groupName.length * 5.6 + 68; 
+                }});
 
                 // Render Chain A Nodes dynamically based on operational coloring
                 nodesA.forEach((node, index) => {{
