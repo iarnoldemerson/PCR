@@ -141,9 +141,16 @@ def get_amino_acid_statistics(all_unique_res):
             counts_dict[r] += 1
 
     aa_counts = pd.Series(counts_dict).sort_index()
+    
+    # Safeguard the percentage calculation to prevent AttributeError on float rounding
+    if tot_unique > 0:
+        pct_series = (aa_counts / tot_unique * 100).round(2)
+    else:
+        pct_series = pd.Series(0.0, index=aa_counts.index)
+
     df_aa_stats = pd.DataFrame({
         "Frequency": aa_counts,
-        "Percentage (%)": ((aa_counts / tot_unique * 100) if tot_unique > 0 else 0.0).round(2)
+        "Percentage (%)": pct_series
     })
 
     # Chemical groups mapping
@@ -341,7 +348,7 @@ if structure:
             else:
                 interface_classification = "Intermediate Contact Region (800 - 1000 Å²)"
 
-            for chain_id, ch_obj, monomer_sasa in [(chain_a, ch_a_obj, monomer_sasa), (chain_b, ch_b_obj, monomer_b_sasa)]:
+            for chain_id, ch_obj, monomer_sasa in [(chain_a, ch_a_obj, monomer_a_sasa), (chain_b, ch_b_obj, monomer_b_sasa)]:
                 for res in ch_obj.get_residues():
                     if res.id[0] != " ":
                         continue
@@ -451,7 +458,7 @@ if structure:
 with main_tab_analysis:
     if not analysis_results:
         st.info("☐ Please load a structure from the sidebar & select valid parameters to begin.")
-    else: 
+    else:
         df_pairs = analysis_results["df_pairs"]
         df_atoms = analysis_results["df_atoms"]
         df_interface_all = analysis_results["df_interface_all"]
@@ -648,7 +655,7 @@ with main_tab_analysis:
             df_bsa_export = pd.DataFrame(all_residue_sasa_records)
             df_bsa_export.index = df_bsa_export.index + 1
             csv_bsa_metrics = df_bsa_export.to_csv(index=True).encode("utf-8")
-            st.download_button(
+            st.download_button( 
                 label="⬇ Download BSA Metrics & Residue-level SASA CSV",
                 data=csv_bsa_metrics,
                 file_name=f"bsa_residue_sasa_metrics_{chain_a}_{chain_b}.csv",
@@ -896,7 +903,7 @@ with main_tab_2d_viewer:
                 'Aromatic': '#8B5CF6',     # Purple
                 'Default': '#9CA3AF'      # Grey
             }
-            
+
             def get_aa_color(res_name):
                 name_3char = res_name[:3].upper()
                 for group, list_aa in amino_acid_groups.items():
