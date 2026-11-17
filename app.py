@@ -655,7 +655,7 @@ with main_tab_analysis:
             df_bsa_export = pd.DataFrame(all_residue_sasa_records)
             df_bsa_export.index = df_bsa_export.index + 1
             csv_bsa_metrics = df_bsa_export.to_csv(index=True).encode("utf-8")
-            st.download_button( 
+            st.download_button(
                 label="⬇ Download BSA Metrics & Residue-level SASA CSV",
                 data=csv_bsa_metrics,
                 file_name=f"bsa_residue_sasa_metrics_{chain_a}_{chain_b}.csv",
@@ -779,7 +779,7 @@ with main_tab_analysis:
 
             # Metrics Section
             story.append(Paragraph("1. Key Interface Metrics", section_style))
-            metrics_table_data = [
+            metrics_table_data = [ 
                 ["Metric Name", "Value"],
                 ["Total Unique Interface Residues (ΔSASA > 0)", str(total_unique_res)],
                 ["Residue-Residue Pairs", str(len(df_pairs))],
@@ -936,8 +936,8 @@ with main_tab_2d_viewer:
             node_height = 35
             node_width = 110
             spacing = 15
-            # Allocate additional vertical space at the top of the SVG for the Legend block and Title
-            legend_height = 50
+            # Allocate additional vertical space at the top of the SVG for the stacked wrap-around Legend block and Title
+            legend_height = 75
             y_start = 100 + legend_height
             total_height = max(len(unique_nodes_a), len(unique_nodes_b)) * (node_height + spacing) + y_start + 20
 
@@ -961,17 +961,17 @@ with main_tab_2d_viewer:
                     </defs>
 
                     <!-- Main Title: PDB ID -->
-                    <text x="400" y="35" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="bold" fill="#1E3A8A">STRUCTURE INTERFACE MODEL - PDB ID: {active_target_title}</text>
+                    <text x="400" y="32" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="bold" fill="#1E3A8A">STRUCTURE INTERFACE MODEL - PDB ID: {active_target_title}</text>
 
-                    <!-- Color Legend Panel -->
-                    <g id="legend_group" transform="translate(25, 55)">
-                        <rect x="0" y="0" width="750" height="35" rx="6" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1" />
-                        <text x="12" y="21" font-family="sans-serif" font-size="11" font-weight="bold" fill="#374151">Legends:</text>
+                    <!-- Color Legend Panel wrapped into 2 compact rows to prevent going out of boundaries -->
+                    <g id="legend_group" transform="translate(25, 50)">
+                        <rect x="0" y="0" width="750" height="56" rx="6" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1" />
+                        <text x="15" y="20" font-family="sans-serif" font-size="11" font-weight="bold" fill="#374151">Legends:</text>
                     </g>
 
                     <!-- Headers -->
-                    <text x="150" y="130" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#1E3A8A">Chain {chain_a} Residues</text>
-                    <text x="650" y="130" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#B91C1C">Chain {chain_b} Residues</text>
+                    <text x="150" y="150" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#1E3A8A">Chain {chain_a} Residues</text>
+                    <text x="650" y="150" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#B91C1C">Chain {chain_b} Residues</text>
 
                     <g id="linkages_layer"></g>
                     <g id="nodes_layer"></g>
@@ -1017,15 +1017,25 @@ with main_tab_2d_viewer:
                 const linkagesLayer = document.getElementById('linkages_layer');
                 const legendGroup = document.getElementById('legend_group');
 
-                // Render the interactive chemical property legends into the Legend group
-                let legendX = 75;
-                const legendY = 22;
+                // Multi-row Wrap Implementation for Legends to fit beautifully within 750px boundaries
+                let legendX = 85;
+                let legendY = 20;
+                let legendItemIndex = 0;
+
                 Object.entries(colorMap).forEach(([groupName, hexColor]) => {{
+                    // After 3 items, wrap to the next row (compact design)
+                    if (legendItemIndex > 0 && legendItemIndex % 3 === 0) {{
+                        legendX = 85;
+                        legendY += 23;
+                    }}
+                    
                     legendGroup.innerHTML += `
                         <rect x="${{legendX}}" y="${{legendY - 10}}" width="14" height="14" rx="3" fill="${{hexColor}}" />
-                        <text x="${{legendX + 18}}" y="${{legendY + 1}}" font-family="sans-serif" font-size="10.5" fill="#4B5563">${{groupName}}</text>
+                        <text x="${{legendX + 20}}" y="${{legendY + 1}}" font-family="sans-serif" font-size="11" fill="#4B5563">${{groupName}}</text>
                     `;
-                    legendX += groupName.length * 5.6 + 68; 
+                    
+                    legendX += 205; 
+                    legendItemIndex++;
                 }});
 
                 // Render Chain A Nodes dynamically based on operational coloring
