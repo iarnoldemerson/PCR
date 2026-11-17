@@ -87,7 +87,7 @@ try:
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         </style>
-    """, unsafe_allow_html=True) 
+    """, unsafe_allow_html=True)
 except Exception:
     pass
 
@@ -141,7 +141,7 @@ def get_amino_acid_statistics(all_unique_res):
             counts_dict[r] += 1
 
     aa_counts = pd.Series(counts_dict).sort_index()
-    
+
     # Safeguard the percentage calculation to prevent AttributeError on float rounding
     if tot_unique > 0:
         pct_series = (aa_counts / tot_unique * 100).round(2)
@@ -821,11 +821,11 @@ with main_tab_analysis:
                 try:
                     fig, ax = plt.subplots(figsize=(6, 3))
                     distances = df_pairs["Minimum Distance (Å)"].dropna().astype(float)
+                    ax.grid(True, linestyle="--", alpha=0.5)
                     ax.hist(distances, bins=10, color="#3B82F6", edgecolor="black", alpha=0.8)
                     ax.set_title("Distribution of Minimum Residue-Residue Distances", fontsize=10, fontweight="bold", color="#1E3A8A")
                     ax.set_xlabel("Distance (Å)", fontsize=8)
                     ax.set_ylabel("Frequency", fontsize=8)
-                    ax.grid(True, linestyle="--", alpha=0.5)
                     plt.tight_layout()
 
                     img_buf = io.BytesIO()
@@ -879,7 +879,7 @@ with main_tab_analysis:
                 mime="application/pdf"
             )
 
-# Main Tab 2: New Labeled 2D Side-by-Side Schematic Viewer with dynamic Title as active target
+# Main Tab 2: Labeled 2D Side-by-Side Schematic Viewer with dynamic PDB ID Title
 with main_tab_2d_viewer:
     if not analysis_results:
         st.info("☐ Please load a structure from the sidebar & select valid parameters to begin.")
@@ -936,9 +936,9 @@ with main_tab_2d_viewer:
             node_height = 35
             node_width = 110
             spacing = 15
-            # Allocate additional vertical space at the top of the SVG for the Legend block
+            # Allocate additional vertical space at the top of the SVG for the Legend block and Title
             legend_height = 50
-            y_start = 60 + legend_height
+            y_start = 100 + legend_height
             total_height = max(len(unique_nodes_a), len(unique_nodes_b)) * (node_height + spacing) + y_start + 20
 
             # Format connection list for JSON integration inside JS
@@ -960,15 +960,18 @@ with main_tab_2d_viewer:
                         </filter>
                     </defs>
 
+                    <!-- Main Title: PDB ID -->
+                    <text x="400" y="35" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="bold" fill="#1E3A8A">STRUCTURE INTERFACE MODEL - PDB ID: {active_target_title}</text>
+
                     <!-- Color Legend Panel -->
-                    <g id="legend_group" transform="translate(25, 15)">
+                    <g id="legend_group" transform="translate(25, 55)">
                         <rect x="0" y="0" width="750" height="35" rx="6" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1" />
                         <text x="12" y="21" font-family="sans-serif" font-size="11" font-weight="bold" fill="#374151">Legends:</text>
                     </g>
 
                     <!-- Headers -->
-                    <text x="150" y="90" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#1E3A8A">Chain {chain_a} Residues</text>
-                    <text x="650" y="90" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#B91C1C">Chain {chain_b} Residues</text>
+                    <text x="150" y="130" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#1E3A8A">Chain {chain_a} Residues</text>
+                    <text x="650" y="130" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#B91C1C">Chain {chain_b} Residues</text>
 
                     <g id="linkages_layer"></g>
                     <g id="nodes_layer"></g>
