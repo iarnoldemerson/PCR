@@ -93,7 +93,7 @@ except Exception:
 
 # Display Highlighted Title
 try:
-    st.markdown("<div class=\"main-title\">☣  Protein Contact Residue Server</div>", unsafe_allow_html=True)
+    st.markdown("<div class=\"main-title\">  Protein Contact Residue Server</div>", unsafe_allow_html=True)
 except Exception:
     pass
 
