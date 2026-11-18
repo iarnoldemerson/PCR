@@ -66,7 +66,7 @@ try:
             color: #2563EB !important;
             border-color: #3B82F6;
         }
-        .stTabs [aria-selected="true"] {
+        .stTabs [aria-selected="true"] { 
             background-color: #3B82F6 !important;
             color: #FFFFFF !important;
             border: 1px solid #2563EB !important;
@@ -180,7 +180,7 @@ pdb_id = ""
 # Initialize session state to persist loaded structure
 if "pdb_raw_data" not in st.session_state:
     st.session_state.pdb_raw_data = None
-if "structure" not in st.session_state:
+if "structure" not in st.session_state: 
     st.session_state.structure = None
 if "pdb_id" not in st.session_state:
     st.session_state.pdb_id = ""
@@ -247,7 +247,7 @@ with main_tab_help:
        * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\Delta SASA > 0$) are highlighted.
     """)
 
-    st.markdown("####   3D/2D Filter Display Controls")
+    st.markdown("####   3D Filter Display Controls")
     st.markdown("""
     The **3D Filter Display** panel allows you to customize and focus on specific structural elements inside the 3D canvas:
     * **Enable Residue Labels**: Toggles text annotations indicating residue name and sequence position on top of contacting side-chains.
@@ -256,6 +256,20 @@ with main_tab_help:
     * **Select contact residue pairs**: A multi-select tool allowing you to focus on specific interacting partner pairs (e.g., `PHE42 - LYS12`) instead of viewing all overlapping bonds simultaneously.
     * **Custom Chain Coloring & Backgrounds**: Alters the main ribbon styles and viewport background dynamically to prepare beautiful figures for publication.
     """)
+
+    st.markdown("####   2D Schematic Interactive Diagram Guide")
+    st.markdown("""
+    The **Interface Analysis & 2D Viewer** tab provides a flat, dynamic schematic map depicting specific physical contacts occurring side-by-side between the interacting chains:
+    * **Parallel Nodes Grid**: Interacting residues from Chain 1 (left column) and Chain 2 (right column) are displayed dynamically as interactive blocks.
+    * **Chemical Classification Color-Coding**: Nodes are highlighted according to their biochemical properties, making it easy to identify key electrostatic and hydrophobic regions:
+      * <span style="background-color:#10B981; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Hydrophobic</span> (ALA, VAL, ILE, LEU, MET, PHE, TRP, PRO)
+      * <span style="background-color:#3B82F6; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Polar</span> (SER, THR, ASN, GLN, TYR, CYS)
+      * <span style="background-color:#F59E0B; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Positively charged</span> (LYS, ARG, HIS)
+      * <span style="background-color:#EF4444; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Negatively charged</span> (ASP, GLU)
+      * <span style="background-color:#8B5CF6; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Aromatic</span> (PHE, TYR, TRP)
+    * **Distance Labels Toggle**: Check the **Display distance labels on schematic connections** box to overlay precise minimum heavy-atom distances (formatted to 2 decimal places) directly onto the dotted connector lines.
+    * **High-Quality Vector Export**: Click **Save 2D Schematic as PNG Image** to programmatically generate a high-DPI rasterized graphic from the live SVG object, perfect for presentations and publications.
+    """, unsafe_allow_html=True)
 
     st.markdown("####   Understanding the Analysis Tables")
     st.markdown("""
@@ -779,7 +793,7 @@ with main_tab_analysis:
 
             # Metrics Section
             story.append(Paragraph("1. Key Interface Metrics", section_style))
-            metrics_table_data = [ 
+            metrics_table_data = [
                 ["Metric Name", "Value"],
                 ["Total Unique Interface Residues (ΔSASA > 0)", str(total_unique_res)],
                 ["Residue-Residue Pairs", str(len(df_pairs))],
@@ -1028,13 +1042,13 @@ with main_tab_2d_viewer:
                         legendX = 85;
                         legendY += 23;
                     }}
-                    
+
                     legendGroup.innerHTML += `
                         <rect x="${{legendX}}" y="${{legendY - 10}}" width="14" height="14" rx="3" fill="${{hexColor}}" />
                         <text x="${{legendX + 20}}" y="${{legendY + 1}}" font-family="sans-serif" font-size="11" fill="#4B5563">${{groupName}}</text>
                     `;
-                    
-                    legendX += 205; 
+
+                    legendX += 205;
                     legendItemIndex++;
                 }});
 
