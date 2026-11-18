@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -91,8 +92,7 @@ try:
 except Exception:
     pass
 
-# Display Highlighted Title
-try:
+# Display Highlighted Title	ry:
     st.markdown("<div class=\"main-title\">  Protein Contact Residue Server</div>", unsafe_allow_html=True)
 except Exception:
     pass
@@ -102,8 +102,8 @@ st.markdown("""<div class="justified-para">
 The Protein Contact Residue Server is an advanced interactive web tool for structural biologists and biochemists. It's designed to carry out very precise distance-based calculations of physical contacts and detailed surface area computations across macromolecular binding interfaces. It can take coordinate files directly from the PDB (RCSB PDB) or from your own local files, identify inter-chain residue networks, analyze Solvent Accessible Surface Area (SASA) modifications, and classify biologically relevant interfaces.
 </div>""", unsafe_allow_html=True)
 
-# Display attached user image
-image_path = "/content/Screenshot 2026-11-11 at 12.03.52…PM.png"
+# Display attached user image as header
+image_path = "/content/Protein Contact Residue Server Banner.png"
 if os.path.exists(image_path):
     st.image(image_path, use_container_width=True, caption="Protein Contact Residue Server Overview")
 
