@@ -518,7 +518,7 @@ with main_tab_analysis:
             chain_b_color = color_choices[chain_b_color_name]
 
         with col_visualizer:
-            st.subheader(f"░░ 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
+            st.subheader(f" 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
             st.write("Interactive 3D representation showing contacting residues linked together.")
 
             if pdb_raw_data:
