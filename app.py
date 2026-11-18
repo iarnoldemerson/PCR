@@ -44,7 +44,7 @@ try:
             margin-bottom: 15px;
         }
 
-        /* Highlight and style navigation Tabs */
+        /* Highlight and style navigation Tabs with increased font size */
         .stTabs [data-baseweb="tab-list"] {
             gap: 12px;
             background-color: #F3F4F6;
@@ -52,13 +52,14 @@ try:
             border-radius: 8px;
         }
         .stTabs [data-baseweb="tab"] {
-            height: 50px;
+            height: 55px;
             white-space: pre-wrap;
             background-color: #FFFFFF;
             border-radius: 6px;
             color: #4B5563 !important;
-            font-weight: 600 !important;
-            padding: 0 16px;
+            font-weight: 700 !important;
+            font-size: 1.4rem !important;
+            padding: 0 24px;
             border: 1px solid #E5E7EB;
             transition: all 0.2s ease;
         }
@@ -66,7 +67,7 @@ try:
             color: #2563EB !important;
             border-color: #3B82F6;
         }
-        .stTabs [aria-selected="true"] { 
+        .stTabs [aria-selected="true"] {
             background-color: #3B82F6 !important;
             color: #FFFFFF !important;
             border: 1px solid #2563EB !important;
@@ -180,7 +181,7 @@ pdb_id = ""
 # Initialize session state to persist loaded structure
 if "pdb_raw_data" not in st.session_state:
     st.session_state.pdb_raw_data = None
-if "structure" not in st.session_state: 
+if "structure" not in st.session_state:
     st.session_state.structure = None
 if "pdb_id" not in st.session_state:
     st.session_state.pdb_id = ""
@@ -670,7 +671,7 @@ with main_tab_analysis:
             df_bsa_export.index = df_bsa_export.index + 1
             csv_bsa_metrics = df_bsa_export.to_csv(index=True).encode("utf-8")
             st.download_button(
-                label="⬇ Download BSA Metrics & Residue-level SASA CSV",
+                label="⇩ Download BSA Metrics & Residue-level SASA CSV",
                 data=csv_bsa_metrics,
                 file_name=f"bsa_residue_sasa_metrics_{chain_a}_{chain_b}.csv",
                 mime="text/csv"
@@ -688,7 +689,7 @@ with main_tab_analysis:
                 st.dataframe(df_interface_all, use_container_width=True)
                 csv_interface = df_interface_all.to_csv(index=True).encode("utf-8")
                 st.download_button(
-                    label="⬇ Download Interface Residues CSV",
+                    label="⇩ Download Interface Residues CSV",
                     data=csv_interface,
                     file_name=f"interface_residues_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                     mime="text/csv"
@@ -711,7 +712,7 @@ with main_tab_analysis:
                         st.dataframe(df_aa_stats, use_container_width=True)
                         csv_aa_stats = df_aa_stats.to_csv(index=True).encode("utf-8")
                         st.download_button(
-                            label="⬇ Download Amino Acid Frequency CSV",
+                            label="⇩ Download Amino Acid Frequency CSV",
                             data=csv_aa_stats,
                             file_name=f"amino_acid_frequency_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                             mime="text/csv"
@@ -727,7 +728,7 @@ with main_tab_analysis:
                         st.dataframe(df_groups, use_container_width=True)
                         csv_groups = df_groups.to_csv(index=True).encode("utf-8")
                         st.download_button(
-                            label="⬇ Download Group Distribution CSV",
+                            label="⇩ Download Group Distribution CSV",
                             data=csv_groups,
                             file_name=f"amino_acid_groups_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                             mime="text/csv"
@@ -741,7 +742,7 @@ with main_tab_analysis:
                 st.dataframe(df_pairs, use_container_width=True)
                 csv_pairs = df_pairs.to_csv(index=True).encode("utf-8")
                 st.download_button(
-                    label="⬇ Download Residue Pairs CSV",
+                    label="⇩ Download Residue Pairs CSV",
                     data=csv_pairs,
                     file_name=f"residue_pairs_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                     mime="text/csv"
@@ -751,7 +752,7 @@ with main_tab_analysis:
                 st.dataframe(df_atoms, use_container_width=True)
                 csv_atoms = df_atoms.to_csv(index=True).encode("utf-8")
                 st.download_button(
-                    label="⬇ Download Atom Contacts CSV",
+                    label="⇩ Download Atom Contacts CSV",
                     data=csv_atoms,
                     file_name=f"atom_contacts_{chain_a}_{chain_b}_{selected_cutoff}A.csv",
                     mime="text/csv"
@@ -759,7 +760,7 @@ with main_tab_analysis:
 
             # PDF Generation Export Section
             st.markdown("---")
-            st.subheader("⬇ Export Report as PDF")
+            st.subheader("⇩ Export Report as PDF")
             st.write("Generate a detailed, formatted PDF summary report.")
 
             pdf_buffer = io.BytesIO()
@@ -887,7 +888,7 @@ with main_tab_analysis:
             doc.build(story)
             pdf_data = pdf_buffer.getvalue()
             st.download_button(
-                label="⬇ Download PDF Report",
+                label="⇩ Download PDF Report",
                 data=pdf_data,
                 file_name=f"protein_contact_report_{pdb_id}_{chain_a}_{chain_b}.pdf",
                 mime="application/pdf"
