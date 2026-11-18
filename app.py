@@ -103,7 +103,7 @@ The Protein Contact Residue Server is an advanced interactive web tool for struc
 </div>""", unsafe_allow_html=True)
 
 # Display attached user image as header
-image_path = "/content/Protein Contact Residue Server Banner.png"
+image_path = "Protein Contact Residue Server Banner.png"
 if os.path.exists(image_path):
     st.image(image_path, use_container_width=True, caption="Protein Contact Residue Server Overview")
 
