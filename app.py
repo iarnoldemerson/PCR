@@ -110,8 +110,8 @@ if os.path.exists(image_path):
 # Create Main Tabs including the requested 2D Viewer Tab
 main_tab_analysis, main_tab_2d_viewer, main_tab_help = st.tabs([
     "  Interface Analysis & 3D Viewer",
-    "▧ Interface Analysis & 2D Viewer",
-    "❓ Help Guide"
+    "  Interface Analysis & 2D Viewer",
+    "  Help Guide"
 ])
 
 # Operational chemical classifications of amino acids
@@ -886,7 +886,7 @@ with main_tab_2d_viewer:
     else:
         # Set Tab header dynamically using active Target ID / name
         active_target_title = pdb_id.upper() if pdb_id else "Target Structure"
-        st.subheader(f"▧ PDB ID: {active_target_title}")
+        st.subheader(f" PDB ID: {active_target_title}")
         st.write("Displays the interacting residues from both chains in parallel with connecting lines marking physical contacts.")
 
         df_pairs = analysis_results["df_pairs"]
