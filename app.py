@@ -87,7 +87,7 @@ try:
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         </style>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True) 
 except Exception:
     pass
 
@@ -114,13 +114,12 @@ main_tab_analysis, main_tab_2d_viewer, main_tab_help = st.tabs([
     "  Help Guide"
 ])
 
-# Operational chemical classifications of amino acids
+# Non-overlapping categories to avoid over-counting
 amino_acid_groups = {
-    'Hydrophobic': ['ALA', 'VAL', 'ILE', 'LEU', 'MET', 'PHE', 'TRP', 'PRO'],
+    'Hydrophobic': ['ALA', 'VAL', 'ILE', 'LEU', 'MET', 'PHE', 'TRP', 'PRO', 'GLY'],
     'Polar': ['SER', 'THR', 'ASN', 'GLN', 'TYR', 'CYS'],
     'Positively charged': ['LYS', 'ARG', 'HIS'],
-    'Negatively charged': ['ASP', 'GLU'],
-    'Aromatic': ['PHE', 'TYR', 'TRP']
+    'Negatively charged': ['ASP', 'GLU']
 }
 
 # Standard list of the 20 canonical amino acids
@@ -262,11 +261,10 @@ with main_tab_help:
     The **Interface Analysis & 2D Viewer** tab provides a flat, dynamic schematic map depicting specific physical contacts occurring side-by-side between the interacting chains:
     * **Parallel Nodes Grid**: Interacting residues from Chain 1 (left column) and Chain 2 (right column) are displayed dynamically as interactive blocks.
     * **Chemical Classification Color-Coding**: Nodes are highlighted according to their biochemical properties, making it easy to identify key electrostatic and hydrophobic regions:
-      * <span style="background-color:#10B981; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Hydrophobic</span> (ALA, VAL, ILE, LEU, MET, PHE, TRP, PRO)
+      * <span style="background-color:#10B981; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Hydrophobic</span> (ALA, VAL, ILE, LEU, MET, PHE, TRP, PRO, GLY)
       * <span style="background-color:#3B82F6; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Polar</span> (SER, THR, ASN, GLN, TYR, CYS)
       * <span style="background-color:#F59E0B; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Positively charged</span> (LYS, ARG, HIS)
       * <span style="background-color:#EF4444; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Negatively charged</span> (ASP, GLU)
-      * <span style="background-color:#8B5CF6; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Aromatic</span> (PHE, TYR, TRP)
     * **Distance Labels Toggle**: Check the **Display distance labels on schematic connections** box to overlay precise minimum heavy-atom distances (formatted to 2 decimal places) directly onto the dotted connector lines.
     * **High-Quality Vector Export**: Click **Save 2D Schematic as PNG Image** to programmatically generate a high-DPI rasterized graphic from the live SVG object, perfect for presentations and publications.
     """, unsafe_allow_html=True)
@@ -276,7 +274,7 @@ with main_tab_help:
     ##### **i) Unique Interface Residues & Property Analysis**
     This dataset isolates individual amino acids that lose solvent accessibility ($\Delta SASA > 0$) upon complex formation. This panel shows:
     * **Unbound and Bound SASA**: Quantifies the transition from completely isolated monomers to the fully bound biological interface.
-    * **Physicochemical Group Frequencies**: Automatically categorizes residues into operational categories (*Hydrophobic*, *Polar*, *Aromatic*, *Positively charged*, and *Negatively charged*) to identify the major electrostatic or hydrophobic drivers stabilizing the complex.
+    * **Physicochemical Group Frequencies**: Automatically categorizes residues into operational categories (*Hydrophobic*, *Polar*, *Positively charged*, and *Negatively charged*) to identify the major electrostatic or hydrophobic drivers stabilizing the complex.
 
     ##### **ii) Residue-Residue Pairs**
     Displays a unique pair-wise interaction registry. If Residue A from Chain 1 makes physical contact with Residue B from Chain 2, they form a registered interactive pair. It provides the **minimum distance** observed between any structural heavy-atoms in the pair.
@@ -914,7 +912,6 @@ with main_tab_2d_viewer:
                 'Polar': '#3B82F6',       # Royal Blue
                 'Positively charged': '#F59E0B', # Amber
                 'Negatively charged': '#EF4444', # Rose Red
-                'Aromatic': '#8B5CF6',     # Purple
                 'Default': '#9CA3AF'      # Grey
             }
 
