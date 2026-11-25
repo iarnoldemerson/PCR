@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from Bio.PDB import PDBParser, PDBList
 from Bio.PDB.SASA import ShrakeRupley
+from Bio.Align import PairwiseAligner
 import io
 import os
 import base64
@@ -286,6 +287,44 @@ with main_tab_help:
 # Initialize analysis containers to share analysis output across both tabs
 analysis_results = {}
 
+# Convert standard PDB residue names to one-letter amino-acid codes for alignment.
+residue_one_letter = {
+    "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C",
+    "GLN": "Q", "GLU": "E", "GLY": "G", "HIS": "H", "ILE": "I",
+    "LEU": "L", "LYS": "K", "MET": "M", "PHE": "F", "PRO": "P",
+    "SER": "S", "THR": "T", "TRP": "W", "TYR": "Y", "VAL": "V"
+}
+
+def chain_sequence(chain):
+    """Return the chain's polymer sequence, keeping unknown residues as X."""
+    return "".join(
+        residue_one_letter.get(res.get_resname().strip().upper(), "X")
+        for res in chain.get_residues()
+        if res.id[0] == " "
+    )
+
+def calculate_sequence_identity(sequence_a, sequence_b):
+    """Compute global alignment identity as matches divided by alignment columns."""
+    if not sequence_a or not sequence_b:
+        return 0.0
+
+    aligner = PairwiseAligner()
+    aligner.mode = "global"
+    aligner.match_score = 2
+    aligner.mismatch_score = -1
+    aligner.open_gap_score = -5
+    aligner.extend_gap_score = -0.5
+    alignment = aligner.align(sequence_a, sequence_b)[0]
+    aligned_indices = alignment.indices
+    alignment_columns = aligned_indices.shape[1]
+    identical_columns = sum(
+        1 for i in range(alignment_columns)
+        if aligned_indices[0, i] >= 0
+        and aligned_indices[1, i] >= 0
+        and sequence_a[aligned_indices[0, i]] == sequence_b[aligned_indices[1, i]]
+    )
+    return (identical_columns / alignment_columns * 100) if alignment_columns else 0.0
+
 if structure:
     models = list(structure.get_models())
     selected_model = models[0]
@@ -316,6 +355,9 @@ if structure:
     if chain_a and chain_b and chain_a != chain_b:
         ch_a_obj = selected_model[chain_a]
         ch_b_obj = selected_model[chain_b]
+        sequence_a = chain_sequence(ch_a_obj)
+        sequence_b = chain_sequence(ch_b_obj)
+        sequence_identity = calculate_sequence_identity(sequence_a, sequence_b)
 
         sasa_data_available = False
         monomer_a_sasa = {}
@@ -461,6 +503,7 @@ if structure:
             "total_unique_res": len(df_interface_all),
             "chain_a": chain_a,
             "chain_b": chain_b,
+            "sequence_identity": sequence_identity,
             "selected_cutoff": selected_cutoff,
             "pdb_raw_data": pdb_raw_data,
             "pdb_id": pdb_id
@@ -481,6 +524,7 @@ with main_tab_analysis:
         total_unique_res = analysis_results["total_unique_res"]
         chain_a = analysis_results["chain_a"]
         chain_b = analysis_results["chain_b"]
+        sequence_identity = analysis_results["sequence_identity"]
         selected_cutoff = analysis_results["selected_cutoff"]
         pdb_raw_data = analysis_results["pdb_raw_data"]
         pdb_id = analysis_results["pdb_id"]
@@ -531,6 +575,11 @@ with main_tab_analysis:
 
         with col_visualizer:
             st.subheader(f" 3D Molecular View: Chain {chain_a} and Chain {chain_b}")
+            st.metric(
+                "Sequence identity",
+                f"{sequence_identity:.2f}%",
+                help="Global pairwise alignment identity: identical aligned amino-acid residues divided by all alignment columns, including gaps."
+            )
             st.write("Interactive 3D representation showing contacting residues linked together.")
 
             if pdb_raw_data:
