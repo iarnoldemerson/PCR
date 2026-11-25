@@ -52,14 +52,14 @@ try:
             border-radius: 8px;
         }
         .stTabs [data-baseweb="tab"] {
-            height: 55px;
+            height: 65px;
             white-space: pre-wrap;
             background-color: #FFFFFF;
             border-radius: 6px;
             color: #4B5563 !important;
-            font-weight: 700 !important;
-            font-size: 1.4rem !important;
-            padding: 0 24px;
+            font-weight: 800 !important;
+            font-size: 1.6rem !important;
+            padding: 0 20px;
             border: 1px solid #E5E7EB;
             transition: all 0.2s ease;
         }
