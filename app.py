@@ -912,12 +912,16 @@ with main_tab_analysis:
             )
             alignment_lines = []
             alignment_width = 60
+            chain_label_width = max(len(str(chain_a)), len(str(chain_b)))
+            prefix_a = f"Chain {str(chain_a).ljust(chain_label_width)}: "
+            prefix_b = f"Chain {str(chain_b).ljust(chain_label_width)}: "
+            marker_prefix = " " * len(prefix_a)
             for offset in range(0, len(aligned_sequence_a), alignment_width):
                 end_offset = offset + alignment_width
                 alignment_lines.extend([
-                    f"{chain_a}: {aligned_sequence_a[offset:end_offset]}",
-                    f"     {alignment_marks[offset:end_offset]}",
-                    f"{chain_b}: {aligned_sequence_b[offset:end_offset]}",
+                    f"{prefix_a}{aligned_sequence_a[offset:end_offset]}",
+                    f"{marker_prefix}{alignment_marks[offset:end_offset]}",
+                    f"{prefix_b}{aligned_sequence_b[offset:end_offset]}",
                     ""
                 ])
             story.append(Preformatted("\n".join(alignment_lines) or "No sequence available.", alignment_style))
