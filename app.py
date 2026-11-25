@@ -110,9 +110,9 @@ if os.path.exists(image_path):
 
 # Create Main Tabs including the requested 2D Viewer Tab
 main_tab_analysis, main_tab_2d_viewer, main_tab_help = st.tabs([
-    "  Interface Analysis & 3D Viewer",
-    "  Interface Analysis & 2D Viewer",
-    "  Help Guide"
+    "🧬 Interface Analysis & 3D Viewer",
+    "🗺️ Interface Analysis & 2D Viewer",
+    "📘 Help Guide"
 ])
 
 # Non-overlapping categories to avoid over-counting
@@ -746,9 +746,9 @@ with main_tab_analysis:
 
         if not df_pairs.empty:
             tab1, tab2, tab3 = st.tabs([
-                "  Unique Interface Residues & Property Analysis",
-                "  Residue-Residue Pairs",
-                "  Detailed Atom-Atom Contacts"
+                "🧪 Unique Interface Residues & Property Analysis",
+                "🔗 Residue-Residue Pairs",
+                "⚛️ Detailed Atom-Atom Contacts"
             ])
 
             with tab1:
