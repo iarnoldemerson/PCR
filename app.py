@@ -893,7 +893,7 @@ with main_tab_analysis:
             story.append(Spacer(1, 15))
 
             # Global sequence alignment section
-            story.append(Paragraph("2. Global Sequence Alignment", section_style))
+            story.append(Paragraph("2. Protein Sequence Alignment (Global)", section_style))
             story.append(Paragraph(
                 f"Chain {chain_a} aligned with Chain {chain_b}; identity is {sequence_identity:.2f}% "
                 f"({alignment_marks.count('|')} identical positions / {len(alignment_marks)} alignment columns, including gaps). "
@@ -904,8 +904,8 @@ with main_tab_analysis:
                 "AlignmentMono",
                 parent=normal_style,
                 fontName="Courier",
-                fontSize=7,
-                leading=9,
+                fontSize=12,
+                leading=14,
                 leftIndent=4,
                 spaceBefore=5,
                 spaceAfter=8
