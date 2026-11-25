@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 # ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, Preformatted
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, Preformatted, PageBreak
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
@@ -946,6 +946,7 @@ with main_tab_analysis:
 
             # Distance Distribution Plot Section
             if not df_pairs.empty and "Minimum Distance (Å)" in df_pairs.columns:
+                story.append(PageBreak())
                 story.append(Paragraph("4. Interface Contact Distance Summary Plot", section_style))
                 try:
                     fig, ax = plt.subplots(figsize=(6, 3))
