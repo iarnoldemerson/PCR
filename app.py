@@ -105,7 +105,7 @@ header_image_candidates = [
 ]
 header_image_path = next((path for path in header_image_candidates if os.path.exists(path)), None)
 if header_image_path:
-    st.image(header_image_path, use_container_width=True, caption=None)
+    st.image(header_image_path, width=1000, caption=None)
 else:
     st.error("Header image not found. Place 'Protein Contact Residue Server Banner.png' beside app.py.")
 
@@ -249,7 +249,7 @@ with main_tab_help:
     st.markdown("""
     1. In the sidebar, choose **Fetch from PDB (RCSB)** and enter a four-character PDB ID, or choose **Upload PDB File** and select a `.pdb` file.
     2. Select the two chains to compare. The analysis uses the first model in the structure.
-    3. Choose a distance cut-off of **4.0 Å**, **5.0 Å**, or **6.0 Å**. The cut-off determines which residue pairs and atom pairs are reported as contacts.
+    3. Choose a distance cut-off of **4.0 Å**, **5.0 Å**, or **6.0 Å**. The cut-off determines which residue pairs and atom pairs are reported as contacts.
     4. The **Interface Analysis & 3D Viewer** and **Interface Analysis & 2D Viewer** tabs update from the selected structure, chains, and cut-off.
     """)
 
@@ -267,7 +267,7 @@ with main_tab_help:
     * **SASA:** Solvent-accessible surface area is calculated for each selected chain on its own and for the two-chain complex. Per-residue values are used to estimate the surface area buried on binding.
     * **Buried surface area (BSA):** Calculated as `(SASA of unbound chain 1 + SASA of unbound chain 2) − SASA of the complex`.
     * **Interface residues:** Residues with a positive decrease in SASA from the unbound chain to the complex are listed, with unbound SASA, bound SASA, and ΔSASA.
-    * **Interface classification:** BSA above **1,000 Å²** is labeled biologically relevant dimer; BSA below **800 Å²** is labeled non-specific crystal packing; values from **800 to 1,000 Å²** are labeled intermediate.
+    * **Interface classification:** BSA above **1,000 Å²** is labeled biologically relevant dimer; BSA below **800 Å²** is labeled non-specific crystal packing; values from **800 to 1,000 Å²** are labeled intermediate.
     """)
 
     st.markdown("####   4. Interface Residue Properties")
@@ -366,9 +366,9 @@ if structure:
         chain_b = None
 
     cutoff_options = {
-        4.0: "4 Å (Identify close contacts)",
-        5.0: "5 Å (Primary contact definition)",
-        6.0: "6 Å (Identify broader interfaces)"
+        4.0: "4 Å (Identify close contacts)",
+        5.0: "5 Å (Primary contact definition)",
+        6.0: "6 Å (Identify broader interfaces)"
     }
 
     selected_cutoff = st.sidebar.selectbox(
@@ -422,11 +422,11 @@ if structure:
             total_excluded_sasa = (total_unbound_sasa_a + total_unbound_sasa_b) - total_complex_sasa
 
             if total_excluded_sasa > 1000:
-                interface_classification = "Biologically Relevant Dimer (BSA > 1000 Å²)"
+                interface_classification = "Biologically Relevant Dimer (BSA > 1000 Å²)"
             elif total_excluded_sasa < 800:
-                interface_classification = "Non-specific Crystal Packing (BSA < 800 Å²)"
+                interface_classification = "Non-specific Crystal Packing (BSA < 800 Å²)"
             else:
-                interface_classification = "Intermediate Contact Region (800 - 1000 Å²)"
+                interface_classification = "Intermediate Contact Region (800 - 1000 Å²)"
 
             for chain_id, ch_obj, monomer_sasa in [(chain_a, ch_a_obj, monomer_a_sasa), (chain_b, ch_b_obj, monomer_b_sasa)]:
                 for res in ch_obj.get_residues():
@@ -440,9 +440,9 @@ if structure:
                     all_residue_sasa_records.append({
                         "Chain": chain_id,
                         "Residue": res_name_full,
-                        "Unbound SASA (Å²)": round(unbound_val, 2),
-                        "Bound SASA (Å²)": round(bound_val, 2),
-                        "ΔSASA (Å²)": round(delta_sasa, 2)
+                        "Unbound SASA (Å²)": round(unbound_val, 2),
+                        "Bound SASA (Å²)": round(bound_val, 2),
+                        "ΔSASA (Å²)": round(delta_sasa, 2)
                     })
             sasa_data_available = True
         except Exception as sasa_err:
@@ -475,7 +475,7 @@ if structure:
                                 "Atom A": atom_a.get_name(),
                                 "Residue B": f"{res_b.get_resname()}{res_b.id[1]}",
                                 "Atom B": atom_b.get_name(),
-                                "Distance (Å)": round(dist, 3)
+                                "Distance (Å)": round(dist, 3)
                             })
                             if dist < min_dist_for_pair:
                                 min_dist_for_pair = dist
@@ -491,7 +491,7 @@ if structure:
                         "Residue A ID": res_a.id[1],
                         "Residue B Name": res_b.get_resname(),
                         "Residue B ID": res_b.id[1],
-                        "Minimum Distance (Å)": round(min_dist_for_pair, 3),
+                        "Minimum Distance (Å)": round(min_dist_for_pair, 3),
                         "Closest Atoms (A-B)": f"{(closest_atoms[0] or '')}-{(closest_atoms[1] or '')}"
                     }
                     if visual_atom_pair is not None:
@@ -507,7 +507,7 @@ if structure:
 
         df_pairs = pd.DataFrame(list(unique_pairs.values()))
         df_atoms = pd.DataFrame(atom_contacts)
-        df_interface_all_data = [rec for rec in all_residue_sasa_records if rec["ΔSASA (Å²)"] > 1e-4]
+        df_interface_all_data = [rec for rec in all_residue_sasa_records if rec["ΔSASA (Å²)"] > 1e-4]
         df_interface_all = pd.DataFrame(df_interface_all_data)
 
         if not df_pairs.empty:
@@ -730,7 +730,7 @@ with main_tab_analysis:
                     st.error(f"Could not render 3D structural model: {e}")
 
         # --- Inter-chain Contacts Results Table Header ---
-        st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
+        st.subheader(f"Inter-chain Contacts: Chain {chain_a} and Chain {chain_b} at {selected_cutoff} Å")
 
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         with col_m1:
@@ -738,11 +738,11 @@ with main_tab_analysis:
         with col_m2:
             st.metric("Residue–Residue Pairs", len(df_pairs))
         with col_m3:
-            st.metric("Buried Surface Area (BSA)", f"{total_excluded_sasa:.1f} Å²")
+            st.metric("Buried Surface Area (BSA)", f"{total_excluded_sasa:.1f} Å²")
         with col_m4:
             st.metric("Interface Classification", interface_classification.split(" (")[0])
 
-        st.info(f"**Buried Surface Area Metric Summary**: The Buried Surface Area (BSA) across the interface is **{total_excluded_sasa:.2f} Å²**. This classifies this interaction as: **{interface_classification}**.")
+        st.info(f"**Buried Surface Area Metric Summary**: The Buried Surface Area (BSA) across the interface is **{total_excluded_sasa:.2f} Å²**. This classifies this interaction as: **{interface_classification}**.")
 
         if all_residue_sasa_records:
             df_bsa_export = pd.DataFrame(all_residue_sasa_records)
@@ -866,8 +866,8 @@ with main_tab_analysis:
             story.append(Paragraph("Protein Contact Residue Server Analysis Report", title_style))
             story.append(Paragraph(f"<b>Structure Target:</b> {pdb_id.upper()}", normal_style))
             story.append(Paragraph(f"<b>Interface Chains:</b> Chain {chain_a} & Chain {chain_b}", normal_style))
-            story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} Å", normal_style))
-            story.append(Paragraph(f"<b>Buried Surface Area (BSA):</b> {total_excluded_sasa:.2f} Å² ({interface_classification})", normal_style))
+            story.append(Paragraph(f"<b>Distance Cut-off Threshold:</b> {selected_cutoff} Å", normal_style))
+            story.append(Paragraph(f"<b>Buried Surface Area (BSA):</b> {total_excluded_sasa:.2f} Å² ({interface_classification})", normal_style))
             story.append(Spacer(1, 15))
 
             # Metrics Section
@@ -878,7 +878,7 @@ with main_tab_analysis:
                 ["Residue-Residue Pairs", str(len(df_pairs))],
                 ["Atom-Atom Contacts", str(len(df_atoms))],
                 ["Sequence Identity", f"{sequence_identity:.2f}%"],
-                ["Buried Surface Area (BSA)", f"{total_excluded_sasa:.2f} Å²"]
+                ["Buried Surface Area (BSA)", f"{total_excluded_sasa:.2f} Å²"]
             ]
             t_metrics = Table(metrics_table_data, colWidths=[250, 100])
             t_metrics.setStyle(TableStyle([
@@ -941,15 +941,15 @@ with main_tab_analysis:
                 story.append(Spacer(1, 15))
 
             # Distance Distribution Plot Section
-            if not df_pairs.empty and "Minimum Distance (Å)" in df_pairs.columns:
+            if not df_pairs.empty and "Minimum Distance (Å)" in df_pairs.columns:
                 story.append(Paragraph("4. Interface Contact Distance Summary Plot", section_style))
                 try:
                     fig, ax = plt.subplots(figsize=(6, 3))
-                    distances = df_pairs["Minimum Distance (Å)"].dropna().astype(float)
+                    distances = df_pairs["Minimum Distance (Å)"].dropna().astype(float)
                     ax.grid(True, linestyle="--", alpha=0.5)
                     ax.hist(distances, bins=10, color="#3B82F6", edgecolor="black", alpha=0.8)
                     ax.set_title("Distribution of Minimum Residue-Residue Distances", fontsize=10, fontweight="bold", color="#1E3A8A")
-                    ax.set_xlabel("Distance (Å)", fontsize=8)
+                    ax.set_xlabel("Distance (Å)", fontsize=8)
                     ax.set_ylabel("Frequency", fontsize=8)
                     plt.tight_layout()
 
@@ -966,17 +966,17 @@ with main_tab_analysis:
 
             # 5. Residue-Residue Contacts Table Section inside PDF
             story.append(Paragraph("5. Residue-Residue Contact Pairs Table", section_style))
-            pairs_table_data = [["S.No", "ResA", "ResB", "Distance (Å)"]]
+            pairs_table_data = [["S.No", "ResA", "ResB", "Distance (Å)"]]
 
             max_rows_to_render = min(100, len(df_pairs))
             for idx, row in df_pairs.head(max_rows_to_render).iterrows():
                 res_a_str = f"{row['Residue A Name']}{row['Residue A ID']}"
                 res_b_str = f"{row['Residue B Name']}{row['Residue B ID']}"
                 try:
-                    dist_val = float(row["Minimum Distance (Å)"])
+                    dist_val = float(row["Minimum Distance (Å)"])
                     dist_formatted = f" {dist_val:.2f}"
                 except:
-                    dist_formatted = str(row["Minimum Distance (Å)"])
+                    dist_formatted = str(row["Minimum Distance (Å)"])
 
                 pairs_table_data.append([
                     str(idx),
@@ -1047,7 +1047,7 @@ with main_tab_2d_viewer:
             for _, row in df_pairs.iterrows():
                 res_a = f"{row['Residue A Name']}{row['Residue A ID']}"
                 res_b = f"{row['Residue B Name']}{row['Residue B ID']}"
-                dist_val = row["Minimum Distance (Å)"]
+                dist_val = row["Minimum Distance (Å)"]
                 connections.append({"from": res_a, "to": res_b, "dist": dist_val})
 
             # Interactive Toggle Checkbox to enable/disable distance labels on connecting lines in 2D schematic
@@ -1206,7 +1206,7 @@ with main_tab_2d_viewer:
                         if (showDist) {{
                             labelHtml = `
                                 <rect x="${{midX - 22}}" y="${{midY - 9}}" width="44" height="16" rx="4" fill="#F3F4F6" stroke="#D1D5DB" stroke-width="1" />
-                                <text x="${{midX}}" y="${{midY + 3}}" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#374151">${{formattedDist}}Å</text>
+                                <text x="${{midX}}" y="${{midY + 3}}" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#374151">${{formattedDist}}Å</text>
                             `;
                         }}
 
