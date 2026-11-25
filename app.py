@@ -911,8 +911,7 @@ with main_tab_2d_viewer:
                 'Hydrophobic': '#10B981', # Emerald Green
                 'Polar': '#3B82F6',       # Royal Blue
                 'Positively charged': '#F59E0B', # Amber
-                'Negatively charged': '#EF4444', # Rose Red
-                'Default': '#9CA3AF'      # Grey
+                'Negatively charged': '#EF4444' # Rose Red
             }
 
             def get_aa_color(res_name):
@@ -920,7 +919,7 @@ with main_tab_2d_viewer:
                 for group, list_aa in amino_acid_groups.items():
                     if name_3char in list_aa:
                         return aa_color_map[group]
-                return aa_color_map['Default']
+                return '#9CA3AF'  # Grey for unclassified residues; not shown as a group
 
             # Gather unique contact residues from Chain A and Chain B to render side-by-side nodes
             unique_nodes_a = sorted(list(set(df_pairs.apply(lambda r: f"{r['Residue A Name']}{r['Residue A ID']}", axis=1))))
