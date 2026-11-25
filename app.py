@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 # ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, Preformatted
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
@@ -303,10 +303,10 @@ def chain_sequence(chain):
         if res.id[0] == " "
     )
 
-def calculate_sequence_identity(sequence_a, sequence_b):
-    """Compute global alignment identity as matches divided by alignment columns."""
+def calculate_sequence_alignment(sequence_a, sequence_b):
+    """Return global identity and aligned sequence strings, counting gap columns."""
     if not sequence_a or not sequence_b:
-        return 0.0
+        return 0.0, sequence_a or "", sequence_b or "", ""
 
     aligner = PairwiseAligner()
     aligner.mode = "global"
@@ -316,14 +316,22 @@ def calculate_sequence_identity(sequence_a, sequence_b):
     aligner.extend_gap_score = -0.5
     alignment = aligner.align(sequence_a, sequence_b)[0]
     aligned_indices = alignment.indices
-    alignment_columns = aligned_indices.shape[1]
-    identical_columns = sum(
-        1 for i in range(alignment_columns)
-        if aligned_indices[0, i] >= 0
-        and aligned_indices[1, i] >= 0
-        and sequence_a[aligned_indices[0, i]] == sequence_b[aligned_indices[1, i]]
-    )
-    return (identical_columns / alignment_columns * 100) if alignment_columns else 0.0
+    aligned_a = []
+    aligned_b = []
+    markers = []
+    for i in range(aligned_indices.shape[1]):
+        index_a, index_b = aligned_indices[0, i], aligned_indices[1, i]
+        aa = sequence_a[index_a] if index_a >= 0 else "-"
+        bb = sequence_b[index_b] if index_b >= 0 else "-"
+        aligned_a.append(aa)
+        aligned_b.append(bb)
+        markers.append("|" if aa == bb and aa != "-" else " ")
+
+    alignment_columns = len(aligned_a)
+    identical_columns = markers.count("|")
+    identity = identical_columns / alignment_columns * 100 if alignment_columns else 0.0
+    return identity, "".join(aligned_a), "".join(aligned_b), "".join(markers)
+
 
 if structure:
     models = list(structure.get_models())
@@ -357,7 +365,7 @@ if structure:
         ch_b_obj = selected_model[chain_b]
         sequence_a = chain_sequence(ch_a_obj)
         sequence_b = chain_sequence(ch_b_obj)
-        sequence_identity = calculate_sequence_identity(sequence_a, sequence_b)
+        sequence_identity, aligned_sequence_a, aligned_sequence_b, alignment_marks = calculate_sequence_alignment(sequence_a, sequence_b)
 
         sasa_data_available = False
         monomer_a_sasa = {}
@@ -504,6 +512,9 @@ if structure:
             "chain_a": chain_a,
             "chain_b": chain_b,
             "sequence_identity": sequence_identity,
+            "aligned_sequence_a": aligned_sequence_a,
+            "aligned_sequence_b": aligned_sequence_b,
+            "alignment_marks": alignment_marks,
             "selected_cutoff": selected_cutoff,
             "pdb_raw_data": pdb_raw_data,
             "pdb_id": pdb_id
@@ -525,6 +536,9 @@ with main_tab_analysis:
         chain_a = analysis_results["chain_a"]
         chain_b = analysis_results["chain_b"]
         sequence_identity = analysis_results["sequence_identity"]
+        aligned_sequence_a = analysis_results["aligned_sequence_a"]
+        aligned_sequence_b = analysis_results["aligned_sequence_b"]
+        alignment_marks = analysis_results["alignment_marks"]
         selected_cutoff = analysis_results["selected_cutoff"]
         pdb_raw_data = analysis_results["pdb_raw_data"]
         pdb_id = analysis_results["pdb_id"]
@@ -845,6 +859,7 @@ with main_tab_analysis:
                 ["Total Unique Interface Residues (ΔSASA > 0)", str(total_unique_res)],
                 ["Residue-Residue Pairs", str(len(df_pairs))],
                 ["Atom-Atom Contacts", str(len(df_atoms))],
+                ["Sequence Identity", f"{sequence_identity:.2f}%"],
                 ["Buried Surface Area (BSA)", f"{total_excluded_sasa:.2f} Å²"]
             ]
             t_metrics = Table(metrics_table_data, colWidths=[250, 100])
@@ -859,9 +874,40 @@ with main_tab_analysis:
             story.append(t_metrics)
             story.append(Spacer(1, 15))
 
+            # Global sequence alignment section
+            story.append(Paragraph("2. Global Sequence Alignment", section_style))
+            story.append(Paragraph(
+                f"Chain {chain_a} aligned with Chain {chain_b}; identity is {sequence_identity:.2f}% "
+                f"({alignment_marks.count('|')} identical positions / {len(alignment_marks)} alignment columns, including gaps). "
+                "Global alignment scoring: match +2, mismatch -1, gap open -5, gap extension -0.5.",
+                normal_style
+            ))
+            alignment_style = ParagraphStyle(
+                "AlignmentMono",
+                parent=normal_style,
+                fontName="Courier",
+                fontSize=7,
+                leading=9,
+                leftIndent=4,
+                spaceBefore=5,
+                spaceAfter=8
+            )
+            alignment_lines = []
+            alignment_width = 60
+            for offset in range(0, len(aligned_sequence_a), alignment_width):
+                end_offset = offset + alignment_width
+                alignment_lines.extend([
+                    f"{chain_a}: {aligned_sequence_a[offset:end_offset]}",
+                    f"     {alignment_marks[offset:end_offset]}",
+                    f"{chain_b}: {aligned_sequence_b[offset:end_offset]}",
+                    ""
+                ])
+            story.append(Preformatted("\n".join(alignment_lines) or "No sequence available.", alignment_style))
+            story.append(Spacer(1, 10))
+
             # Property Analysis Section
             if df_groups is not None:
-                story.append(Paragraph("2. Chemical Group Distributions", section_style))
+                story.append(Paragraph("3. Chemical Group Distributions", section_style))
                 groups_table_data = [["Category", "Count", "Percentage (%)"]]
                 for idx, row in df_groups.iterrows():
                     groups_table_data.append([str(row["Category"]), str(row["Count"]), f"{row['Percentage (%)']:.2f}%"])
@@ -878,7 +924,7 @@ with main_tab_analysis:
 
             # Distance Distribution Plot Section
             if not df_pairs.empty and "Minimum Distance (Å)" in df_pairs.columns:
-                story.append(Paragraph("3. Interface Contact Distance Summary Plot", section_style))
+                story.append(Paragraph("4. Interface Contact Distance Summary Plot", section_style))
                 try:
                     fig, ax = plt.subplots(figsize=(6, 3))
                     distances = df_pairs["Minimum Distance (Å)"].dropna().astype(float)
@@ -900,8 +946,8 @@ with main_tab_analysis:
                     story.append(Paragraph(f"<i>* Note: Could not render interface contact plot: {ex_plot}</i>", normal_style))
                     story.append(Spacer(1, 15))
 
-            # 4. Residue-Residue Contacts Table Section inside PDF
-            story.append(Paragraph("4. Residue-Residue Contact Pairs Table", section_style))
+            # 5. Residue-Residue Contacts Table Section inside PDF
+            story.append(Paragraph("5. Residue-Residue Contact Pairs Table", section_style))
             pairs_table_data = [["S.No", "ResA", "ResB", "Distance (Å)"]]
 
             max_rows_to_render = min(100, len(df_pairs))
