@@ -97,11 +97,17 @@ try:
 except Exception:
     pass
 
-# Display Highlighted Title
-try:
-    st.markdown("<div class=\"main-title\">  Protein Contact Residue Server</div>", unsafe_allow_html=True)
-except Exception:
-    pass
+# Replace the text title with the supplied branded header image.
+app_directory = os.path.dirname(os.path.abspath(__file__))
+header_image_candidates = [
+    os.path.join(app_directory, "Protein Contact Residue Server Banner.png"),
+    os.path.join(app_directory, "PCR-Server", "Protein Contact Residue Server Banner.png"),
+]
+header_image_path = next((path for path in header_image_candidates if os.path.exists(path)), None)
+if header_image_path:
+    st.image(header_image_path, use_container_width=True, caption=None)
+else:
+    st.error("Header image not found. Place 'Protein Contact Residue Server Banner.png' beside app.py.")
 
 # Introductory description paragraph describing the application
 st.markdown("""<div class="justified-para">
