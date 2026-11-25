@@ -51,15 +51,20 @@ try:
             padding: 8px 12px;
             border-radius: 8px;
         }
-        .stTabs [data-baseweb="tab"] {
-            height: 65px;
+        .stTabs button[data-baseweb="tab"],
+        .stTabs button[data-baseweb="tab"] * {
+            font-weight: 800 !important;
+            font-size: 1.6rem !important;
+            line-height: 1.2 !important;
+        }
+        .stTabs button[data-baseweb="tab"] {
+            min-height: 65px;
+            height: auto;
             white-space: pre-wrap;
             background-color: #FFFFFF;
             border-radius: 6px;
             color: #4B5563 !important;
-            font-weight: 800 !important;
-            font-size: 1.6rem !important;
-            padding: 0 20px;
+            padding: 10px 20px;
             border: 1px solid #E5E7EB;
             transition: all 0.2s ease;
         }
