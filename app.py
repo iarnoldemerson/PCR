@@ -232,56 +232,63 @@ else:
 # Main Tab 3: Help Guide
 with main_tab_help:
     st.markdown("###   Structural Interface Analysis Guide")
-    st.write("Welcome to the reference guide and operating manual for this application. Below are instructions for executing contact calculations, interpreting SASA properties, and downloading reports.")
+    st.write("Use this guide to load a structure, compare two chains, interpret the interface calculations, and export the results.")
 
-    st.markdown("####   Step-by-Step Instructions")
+    st.markdown("####   1. Load a Structure and Choose Chains")
     st.markdown("""
-    1. **Load Your Protein Structure**:
-       * Select either **Fetch from PDB (RCSB)** or choose **Upload PDB File**.
-    2. **Configure Your Chains and Threshold**:
-       * Select **Chain 1** and **Chain 2** from the dropdowns.
-       * Set your desired **Distance Cut-off** (4.0 Å, 5.0 Å, or 6.0 Å).
-    3. **Evaluate Surface Energy & Buried Surface Area (BSA)**:
-       * **Buried Surface Area (BSA) Calculation**: calculated as $BSA = (SASA_{Unbound, A} + SASA_{Unbound, B}) - SASA_{Complex}$.
-       * **Interface Size Classification**: BSA values $> 1,000\text{ Å}^2$ signify biologically relevant dimers; values $< 800\text{ Å}^2$ point to non-specific crystal packing.
-       * **Interface Residues**: Residues with a decrease in SASA upon complex formation ($\Delta SASA > 0$) are highlighted.
+    1. In the sidebar, choose **Fetch from PDB (RCSB)** and enter a four-character PDB ID, or choose **Upload PDB File** and select a `.pdb` file.
+    2. Select the two chains to compare. The analysis uses the first model in the structure.
+    3. Choose a distance cut-off of **4.0 Å**, **5.0 Å**, or **6.0 Å**. The cut-off determines which residue pairs and atom pairs are reported as contacts.
+    4. The **Interface Analysis & 3D Viewer** and **Interface Analysis & 2D Viewer** tabs update from the selected structure, chains, and cut-off.
     """)
 
-    st.markdown("####   3D Filter Display Controls")
+    st.markdown("####   2. Chain Sequence Identity and Global Alignment")
     st.markdown("""
-    The **3D Filter Display** panel allows you to customize and focus on specific structural elements inside the 3D canvas:
-    * **Enable Residue Labels**: Toggles text annotations indicating residue name and sequence position on top of contacting side-chains.
-    * **Transparent molecular surface**: Renders a space-filling Van der Waals (VDW) style envelope over the atoms, allowing you to gauge shape complementarity.
-    * **Surface Opacity**: Controls VDW envelope transparency when active.
-    * **Select contact residue pairs**: A multi-select tool allowing you to focus on specific interacting partner pairs (e.g., `PHE42 - LYS12`) instead of viewing all overlapping bonds simultaneously.
-    * **Custom Chain Coloring & Backgrounds**: Alters the main ribbon styles and viewport background dynamically to prepare beautiful figures for publication.
+    The 3D Viewer displays a **Sequence identity** percentage for the selected chains. Each chain sequence is built from standard polymer residues in PDB order; unrecognized residue names are represented as `X`. The app globally aligns the sequences using match **+2**, mismatch **−1**, gap opening **−5**, and gap extension **−0.5** scores. Identity is the number of identical aligned residue pairs divided by all alignment columns, including columns containing gaps. The score describes sequence similarity and is separate from the contact and surface-area calculations.
+
+    The same global alignment is included in the PDF export. The report shows both aligned sequences in blocks of up to 60 positions, a `|` under identical residue pairs, the identity percentage, and the alignment scoring settings.
     """)
 
-    st.markdown("####   2D Schematic Interactive Diagram Guide")
+    st.markdown("####   3. Interface Contacts and Surface Area")
     st.markdown("""
-    The **Interface Analysis & 2D Viewer** tab provides a flat, dynamic schematic map depicting specific physical contacts occurring side-by-side between the interacting chains:
-    * **Parallel Nodes Grid**: Interacting residues from Chain 1 (left column) and Chain 2 (right column) are displayed dynamically as interactive blocks.
-    * **Chemical Classification Color-Coding**: Nodes are highlighted according to their biochemical properties, making it easy to identify key electrostatic and hydrophobic regions:
-      * <span style="background-color:#10B981; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Hydrophobic</span> (ALA, VAL, ILE, LEU, MET, PHE, TRP, PRO, GLY)
-      * <span style="background-color:#3B82F6; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Polar</span> (SER, THR, ASN, GLN, TYR, CYS)
-      * <span style="background-color:#F59E0B; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Positively charged</span> (LYS, ARG, HIS)
-      * <span style="background-color:#EF4444; color:white; padding:1px 6px; border-radius:3px; font-weight:bold;">Negatively charged</span> (ASP, GLU)
-    * **Distance Labels Toggle**: Check the **Display distance labels on schematic connections** box to overlay precise minimum heavy-atom distances (formatted to 2 decimal places) directly onto the dotted connector lines.
-    * **High-Quality Vector Export**: Click **Save 2D Schematic as PNG Image** to programmatically generate a high-DPI rasterized graphic from the live SVG object, perfect for presentations and publications.
-    """, unsafe_allow_html=True)
+    * **Residue–residue pairs:** For each residue pair across the selected chains, the app records the minimum atom-to-atom distance. A pair is a contact when that minimum distance is at or below the selected cut-off.
+    * **Atom–atom contacts:** Lists individual cross-chain atom pairs whose distance is at or below the selected cut-off.
+    * **SASA:** Solvent-accessible surface area is calculated for each selected chain on its own and for the two-chain complex. Per-residue values are used to estimate the surface area buried on binding.
+    * **Buried surface area (BSA):** Calculated as `(SASA of unbound chain 1 + SASA of unbound chain 2) − SASA of the complex`.
+    * **Interface residues:** Residues with a positive decrease in SASA from the unbound chain to the complex are listed, with unbound SASA, bound SASA, and ΔSASA.
+    * **Interface classification:** BSA above **1,000 Å²** is labeled biologically relevant dimer; BSA below **800 Å²** is labeled non-specific crystal packing; values from **800 to 1,000 Å²** are labeled intermediate.
+    """)
 
-    st.markdown("####   Understanding the Analysis Tables")
+    st.markdown("####   4. Interface Residue Properties")
     st.markdown("""
-    ##### **i) Unique Interface Residues & Property Analysis**
-    This dataset isolates individual amino acids that lose solvent accessibility ($\Delta SASA > 0$) upon complex formation. This panel shows:
-    * **Unbound and Bound SASA**: Quantifies the transition from completely isolated monomers to the fully bound biological interface.
-    * **Physicochemical Group Frequencies**: Automatically categorizes residues into operational categories (*Hydrophobic*, *Polar*, *Positively charged*, and *Negatively charged*) to identify the major electrostatic or hydrophobic drivers stabilizing the complex.
+    The **Unique Interface Residues & Property Analysis** panel includes per-residue SASA metrics, amino-acid frequencies, and four non-overlapping chemical groups:
 
-    ##### **ii) Residue-Residue Pairs**
-    Displays a unique pair-wise interaction registry. If Residue A from Chain 1 makes physical contact with Residue B from Chain 2, they form a registered interactive pair. It provides the **minimum distance** observed between any structural heavy-atoms in the pair.
+    * **Hydrophobic:** ALA, VAL, ILE, LEU, MET, PHE, TRP, PRO, GLY
+    * **Polar:** SER, THR, ASN, GLN, TYR, CYS
+    * **Positively charged:** LYS, ARG, HIS
+    * **Negatively charged:** ASP, GLU
 
-    ##### **iii) Detailed Atom-Atom Contacts**
-    A fine-grained, high-resolution atom-level list tracking every individual heavy-atom pair (e.g., nitrogen, oxygen, carbon) that falls beneath the configured cut-off boundary. Use this table to map salt bridges, specific hydrogen bonds, and close atomic clashes.
+    Glycine (GLY) is included in the hydrophobic group. Frequency and group percentages are calculated from the interface residue list. The CSV buttons export the tables shown in this panel.
+    """)
+
+    st.markdown("####   5. 3D Viewer Controls")
+    st.markdown("""
+    * **Enable Residue Labels:** Shows residue names and positions for the displayed contacts.
+    * **Transparent molecular surface:** Toggles van der Waals surfaces for the contact residues; **Surface Opacity** adjusts transparency.
+    * **Select contact residue pairs to display:** Focuses the visualization on selected pairs. Leave the selection empty to show all contacts.
+    * **Chain colors** and **Viewer Background Color:** Change the display colors.
+    * **Reset 3D View:** Returns the camera to a view of both selected chains.
+    * **Save 3D View as PNG Image:** Downloads an image of the current view.
+    """)
+
+    st.markdown("####   6. 2D Viewer")
+    st.markdown("""
+    The **Interface Analysis & 2D Viewer** shows contacting residues as two chain columns connected by lines. Node colors use the four chemical groups listed above; unclassified residues, if present, are gray and are not included as a legend group. Toggle **Display distance labels on schematic connections** to show the minimum residue-pair distances. **Save 2D Schematic as PNG Image** exports the diagram.
+    """)
+
+    st.markdown("####   7. Tables and PDF Report")
+    st.markdown("""
+    The analysis tables provide interface residue/SASA details, residue-pair minimum distances, and atom-pair distances. CSV download buttons are provided beside the corresponding tables. Use **Export Report as PDF** in the 3D Viewer tab to create a report containing structure and chain details, the selected cut-off, key metrics (including sequence identity), the global sequence alignment, chemical-group distributions, a contact-distance plot when contacts are available, and a residue-pair table.
     """)
 
 # Initialize analysis containers to share analysis output across both tabs
