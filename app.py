@@ -10,10 +10,11 @@ import os
 import base64
 import streamlit.components.v1 as components
 import matplotlib.pyplot as plt
+from xml.sax.saxutils import escape
 
 # ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, Preformatted
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
@@ -968,37 +969,59 @@ with main_tab_analysis:
             interface_positions_b = {
                 i for i, label in enumerate(sequence_residue_labels_b) if label in interface_labels_b
             }
-            interface_marks_a = "".join(
-                "*" if residue_index in interface_positions_a else " "
-                for residue_index in aligned_residue_indices_a
-            )
-            interface_marks_b = "".join(
-                "*" if residue_index in interface_positions_b else " "
-                for residue_index in aligned_residue_indices_b
-            )
-
             story.append(Paragraph(
-                "<b>*</b> marks interface residues from the unique interface-residue table; "
-                "<b>|</b> marks identical aligned residues.",
+                f'<font color="#2563EB"><b>Chain {escape(str(chain_a))}</b></font> interface residues '
+                f'<font color="#DC2626"><b>Chain {escape(str(chain_b))}</b></font> interface residues; '
+                '<b>|</b> marks identical aligned residues.',
                 normal_style
             ))
-            alignment_lines = []
             alignment_width = 60
             chain_label_width = max(len(str(chain_a)), len(str(chain_b)))
             prefix_a = f"Chain {str(chain_a).ljust(chain_label_width)}: "
             prefix_b = f"Chain {str(chain_b).ljust(chain_label_width)}: "
-            marker_prefix = " " * len(prefix_a)
+            marker_prefix = "&#160;" * len(prefix_a)
+
+            def sequence_alignment_markup(prefix, sequence_chunk, residue_indices, interface_positions, color):
+                prefix_markup = escape(prefix).replace(" ", "&#160;")
+                residue_markup = []
+                for amino_acid, residue_index in zip(sequence_chunk, residue_indices):
+                    amino_acid = escape(amino_acid)
+                    if residue_index >= 0 and residue_index in interface_positions:
+                        residue_markup.append(f'<font color="{color}"><b>{amino_acid}</b></font>')
+                    else:
+                        residue_markup.append(amino_acid)
+                return prefix_markup + "".join(residue_markup)
+
+            if not aligned_sequence_a:
+                story.append(Paragraph("No sequence available.", alignment_style))
             for offset in range(0, len(aligned_sequence_a), alignment_width):
                 end_offset = offset + alignment_width
-                alignment_lines.extend([
-                    f"{prefix_a}{aligned_sequence_a[offset:end_offset]}",
-                    f"{marker_prefix}{interface_marks_a[offset:end_offset]}",
-                    f"{marker_prefix}{alignment_marks[offset:end_offset]}",
-                    f"{prefix_b}{aligned_sequence_b[offset:end_offset]}",
-                    f"{marker_prefix}{interface_marks_b[offset:end_offset]}",
-                    ""
-                ])
-            story.append(Preformatted("\n".join(alignment_lines) or "No sequence available.", alignment_style))
+                story.append(Paragraph(
+                    sequence_alignment_markup(
+                        prefix_a,
+                        aligned_sequence_a[offset:end_offset],
+                        aligned_residue_indices_a[offset:end_offset],
+                        interface_positions_a,
+                        "#2563EB"
+                    ),
+                    alignment_style
+                ))
+                marker_markup = marker_prefix + "".join(
+                    "|" if marker == "|" else "&#160;"
+                    for marker in alignment_marks[offset:end_offset]
+                )
+                story.append(Paragraph(marker_markup, alignment_style))
+                story.append(Paragraph(
+                    sequence_alignment_markup(
+                        prefix_b,
+                        aligned_sequence_b[offset:end_offset],
+                        aligned_residue_indices_b[offset:end_offset],
+                        interface_positions_b,
+                        "#DC2626"
+                    ),
+                    alignment_style
+                ))
+                story.append(Spacer(1, 4))
             story.append(Spacer(1, 10))
 
             # Property Analysis Section
