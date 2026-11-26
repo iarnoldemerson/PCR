@@ -346,7 +346,7 @@ def chain_sequence(chain):
 def calculate_sequence_alignment(sequence_a, sequence_b):
     """Return global identity and aligned sequence strings, counting gap columns."""
     if not sequence_a or not sequence_b:
-        return 0.0, sequence_a or "", sequence_b or "", ""
+        return 0.0, sequence_a or "", sequence_b or "", "", [], []
 
     aligner = PairwiseAligner()
     aligner.mode = "global"
@@ -370,7 +370,14 @@ def calculate_sequence_alignment(sequence_a, sequence_b):
     alignment_columns = len(aligned_a)
     identical_columns = markers.count("|")
     identity = identical_columns / alignment_columns * 100 if alignment_columns else 0.0
-    return identity, "".join(aligned_a), "".join(aligned_b), "".join(markers)
+    return (
+        identity,
+        "".join(aligned_a),
+        "".join(aligned_b),
+        "".join(markers),
+        aligned_indices[0].tolist(),
+        aligned_indices[1].tolist()
+    )
 
 
 if structure:
@@ -405,7 +412,13 @@ if structure:
         ch_b_obj = selected_model[chain_b]
         sequence_a = chain_sequence(ch_a_obj)
         sequence_b = chain_sequence(ch_b_obj)
-        sequence_identity, aligned_sequence_a, aligned_sequence_b, alignment_marks = calculate_sequence_alignment(sequence_a, sequence_b)
+        sequence_identity, aligned_sequence_a, aligned_sequence_b, alignment_marks, aligned_residue_indices_a, aligned_residue_indices_b = calculate_sequence_alignment(sequence_a, sequence_b)
+        sequence_residue_labels_a = [
+            f"{res.get_resname()}{res.id[1]}" for res in ch_a_obj.get_residues() if res.id[0] == " "
+        ]
+        sequence_residue_labels_b = [
+            f"{res.get_resname()}{res.id[1]}" for res in ch_b_obj.get_residues() if res.id[0] == " "
+        ]
 
         sasa_data_available = False
         monomer_a_sasa = {}
@@ -555,6 +568,10 @@ if structure:
             "aligned_sequence_a": aligned_sequence_a,
             "aligned_sequence_b": aligned_sequence_b,
             "alignment_marks": alignment_marks,
+            "aligned_residue_indices_a": aligned_residue_indices_a,
+            "aligned_residue_indices_b": aligned_residue_indices_b,
+            "sequence_residue_labels_a": sequence_residue_labels_a,
+            "sequence_residue_labels_b": sequence_residue_labels_b,
             "selected_cutoff": selected_cutoff,
             "pdb_raw_data": pdb_raw_data,
             "pdb_id": pdb_id
@@ -579,6 +596,10 @@ with main_tab_analysis:
         aligned_sequence_a = analysis_results["aligned_sequence_a"]
         aligned_sequence_b = analysis_results["aligned_sequence_b"]
         alignment_marks = analysis_results["alignment_marks"]
+        aligned_residue_indices_a = analysis_results["aligned_residue_indices_a"]
+        aligned_residue_indices_b = analysis_results["aligned_residue_indices_b"]
+        sequence_residue_labels_a = analysis_results["sequence_residue_labels_a"]
+        sequence_residue_labels_b = analysis_results["sequence_residue_labels_b"]
         selected_cutoff = analysis_results["selected_cutoff"]
         pdb_raw_data = analysis_results["pdb_raw_data"]
         pdb_id = analysis_results["pdb_id"]
@@ -932,6 +953,35 @@ with main_tab_analysis:
                 spaceBefore=5,
                 spaceAfter=8
             )
+            interface_labels_a = set()
+            interface_labels_b = set()
+            if not df_interface_all.empty and {"Chain", "Residue"}.issubset(df_interface_all.columns):
+                interface_labels_a = set(
+                    df_interface_all.loc[df_interface_all["Chain"] == chain_a, "Residue"].astype(str)
+                )
+                interface_labels_b = set(
+                    df_interface_all.loc[df_interface_all["Chain"] == chain_b, "Residue"].astype(str)
+                )
+            interface_positions_a = {
+                i for i, label in enumerate(sequence_residue_labels_a) if label in interface_labels_a
+            }
+            interface_positions_b = {
+                i for i, label in enumerate(sequence_residue_labels_b) if label in interface_labels_b
+            }
+            interface_marks_a = "".join(
+                "*" if residue_index in interface_positions_a else " "
+                for residue_index in aligned_residue_indices_a
+            )
+            interface_marks_b = "".join(
+                "*" if residue_index in interface_positions_b else " "
+                for residue_index in aligned_residue_indices_b
+            )
+
+            story.append(Paragraph(
+                "<b>*</b> marks interface residues from the unique interface-residue table; "
+                "<b>|</b> marks identical aligned residues.",
+                normal_style
+            ))
             alignment_lines = []
             alignment_width = 60
             chain_label_width = max(len(str(chain_a)), len(str(chain_b)))
@@ -942,8 +992,10 @@ with main_tab_analysis:
                 end_offset = offset + alignment_width
                 alignment_lines.extend([
                     f"{prefix_a}{aligned_sequence_a[offset:end_offset]}",
+                    f"{marker_prefix}{interface_marks_a[offset:end_offset]}",
                     f"{marker_prefix}{alignment_marks[offset:end_offset]}",
                     f"{prefix_b}{aligned_sequence_b[offset:end_offset]}",
+                    f"{marker_prefix}{interface_marks_b[offset:end_offset]}",
                     ""
                 ])
             story.append(Preformatted("\n".join(alignment_lines) or "No sequence available.", alignment_style))
