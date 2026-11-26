@@ -105,7 +105,29 @@ header_image_candidates = [
 ]
 header_image_path = next((path for path in header_image_candidates if os.path.exists(path)), None)
 if header_image_path:
-    st.image(header_image_path, width=1000, caption=None)
+    with open(header_image_path, "rb") as header_image_file:
+        header_image_base64 = base64.b64encode(header_image_file.read()).decode("ascii")
+    st.markdown(f"""
+        <style>
+        .pcr-header-banner {{
+            width: min(100%, 1200px);
+            margin: 0 auto 12px auto;
+            background: transparent;
+        }}
+        .pcr-header-banner img {{
+            display: block;
+            width: 100%;
+            height: auto;
+            -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 3%, #000 97%, transparent 100%), linear-gradient(to bottom, transparent 0%, #000 3%, #000 97%, transparent 100%);
+            -webkit-mask-composite: source-in;
+            mask-image: linear-gradient(to right, transparent 0%, #000 3%, #000 97%, transparent 100%), linear-gradient(to bottom, transparent 0%, #000 3%, #000 97%, transparent 100%);
+            mask-composite: intersect;
+        }}
+        </style>
+        <div class="pcr-header-banner">
+            <img src="data:image/png;base64,{header_image_base64}" alt="Protein Contact Residue Server banner">
+        </div>
+    """, unsafe_allow_html=True)
 else:
     st.error("Header image not found. Place 'Protein Contact Residue Server Banner.png' beside app.py.")
 
